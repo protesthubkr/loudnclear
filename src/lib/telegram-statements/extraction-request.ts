@@ -19,7 +19,7 @@ export function buildTelegramStatementExtractionRequestBody(
   input: ExtractTelegramStatementSentenceInput,
   model: string,
 ) {
-  const promptCacheKey = getStatementPromptCacheKey();
+  const promptCacheKey = getScopedStatementPromptCacheKey(input);
   const promptCacheRetention = getStatementPromptCacheRetention();
   const modelInput = {
     ...input,
@@ -54,6 +54,18 @@ export function buildTelegramStatementExtractionRequestBody(
       : {}),
     ...getReasoningRequestOptions(model),
   };
+}
+
+function getScopedStatementPromptCacheKey(
+  input: ExtractTelegramStatementSentenceInput,
+) {
+  const promptCacheKey = getStatementPromptCacheKey();
+
+  if (!promptCacheKey || !input.extractionGuidance) {
+    return promptCacheKey;
+  }
+
+  return `${promptCacheKey}_${input.extractionGuidance}`;
 }
 
 export async function requestTelegramStatementExtraction(

@@ -1,6 +1,6 @@
 import type { PublicStatementFeedItem } from "@/lib/telegram-statements/public-feed";
 
-type StatementProfile = {
+export type StatementProfile = {
   label: string;
   logoSrc: string | null;
 };
@@ -77,6 +77,13 @@ const PARTY_STATEMENT_LOGO_SRCS = new Set([
   "/jinbo-logo.svg",
   "/green-logo.png",
 ]);
+
+export const ALL_STATEMENT_PROFILES = STATEMENT_PROFILES.map(
+  ({ label, logoSrc }) => ({
+    label,
+    logoSrc,
+  }),
+) satisfies StatementProfile[];
 
 export function getStatementProfile(
   item: PublicStatementFeedItem,

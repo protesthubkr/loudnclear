@@ -2,6 +2,7 @@ import type { TelegramStatementDocumentType } from "./types";
 
 export type TelegramStatementSentenceExtractionInput = {
   documentTypeHint: TelegramStatementDocumentType;
+  extractionGuidance?: "people_power_strong_expression";
   organizationName: string;
   sourceUrl: string;
   textSnapshot: string;
@@ -27,6 +28,7 @@ export function buildTelegramStatementExtractionPrompt(
     "- 보도자료나 기자회견 안내라도 단체의 요구, 규탄, 촉구, 반대, 환영, 우려가 직접 드러나는 원문 문장이 없으면 대상 문건으로 보지 않는다.",
     "- 일일 뉴스 모음, 교육영상 안내, 선전전 일정, 여행/활동 일지는 대상 문건이 아니다.",
     "- 대상 문건이라고 확신할 수 없거나 핵심 입장 문장이 애매하면 반드시 is_target_document=false, core_sentence=\"\"로 답한다.",
+    ...getAdditionalExtractionRules(input),
     "",
     `단체명: ${input.organizationName}`,
     `문서 유형 힌트: ${input.documentTypeHint}`,
@@ -35,4 +37,22 @@ export function buildTelegramStatementExtractionPrompt(
     "메시지 원문:",
     input.textSnapshot,
   ].join("\n");
+}
+
+function getAdditionalExtractionRules(
+  input: TelegramStatementSentenceExtractionInput,
+) {
+  if (input.extractionGuidance !== "people_power_strong_expression") {
+    return [] as string[];
+  }
+
+  return [
+    "",
+    "국민의힘 문서 추가 규칙:",
+    "- 위 절대 규칙을 모두 지키되, 핵심 문장 후보가 여러 개라면 더 강한 판단, 비판, 규탄, 촉구, 요구가 직접 드러나는 문장을 우선한다.",
+    "- 제목이나 리드 문장이 중립적인 사건 설명에 가깝고, 본문에 더 선명한 책임 추궁, 비판, 경고, 촉구, 요구 문장이 있으면 그 문장을 우선한다.",
+    "- 강한 단어만 있는 짧은 조각이나 구호는 고르지 않는다. 대상과 판단/요구가 함께 남아 독립적으로 읽히는 원문 연속 문자열이어야 한다.",
+    "- 국민의힘 대변인, 수석대변인, 원내수석대변인, 공보단장 이름만 있는 작성자/서명 줄은 절대 core_sentence로 고르지 않는다.",
+    "- 대표적인 우선 신호는 규탄, 촉구, 요구, 책임, 즉각, 철회, 중단, 사과, 엄정, 강력, 분명히 같은 표현이다.",
+  ];
 }

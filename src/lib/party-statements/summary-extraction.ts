@@ -9,6 +9,7 @@ import {
   TelegramStatementSentenceNotFoundError,
 } from "@/lib/telegram-statements/extractor";
 import { extractTelegramStatementSentenceByRule } from "@/lib/telegram-statements/rule-extractor";
+import { compactStatementExtractionIfUseful } from "@/lib/telegram-statements/sentence-compaction";
 import {
   getPartyStatementDocumentText,
   getRequiredPartyStatementSupabaseClient,
@@ -57,13 +58,20 @@ export async function processPartyStatementSummary(
   try {
     const extractionInput = {
       documentTypeHint: summary.document_type,
+      extractionGuidance: getPartyStatementExtractionGuidance(summary),
       organizationName: summary.organization_name,
       sourceUrl: summary.source_url,
       textSnapshot,
     };
-    const extraction =
-      extractTelegramStatementSentenceByRule(extractionInput) ??
-      (await extractTelegramStatementSentence(extractionInput));
+    const ruleExtraction = extractionInput.extractionGuidance
+      ? null
+      : extractTelegramStatementSentenceByRule(extractionInput);
+    const rawExtraction =
+      ruleExtraction ?? (await extractTelegramStatementSentence(extractionInput));
+    const extraction = await compactStatementExtractionIfUseful({
+      extraction: rawExtraction,
+      textSnapshot,
+    });
 
     if (!extraction.isTargetDocument || !extraction.coreSentence.trim()) {
       await markPartyStatementSummarySkipped({
@@ -76,22 +84,35 @@ export async function processPartyStatementSummary(
       return "skipped";
     }
 
-    const quality = getStatementSentenceQualityDecision({
-      confidence: extraction.confidence,
-      coreSentence: extraction.coreSentence,
-      documentType: extraction.documentType,
-      sourceType: "party",
-    });
-
-    if (!quality.publishable) {
+    if (isClearlyInvalidPartyCoreSentence(extraction.coreSentence)) {
       await markPartyStatementSummarySkipped({
-        errorMessage: `quality_gate:${quality.reason}`,
+        errorMessage: "invalid_core_sentence",
         model: extraction.model,
         promptVersion: extraction.promptVersion,
         summaryId: summary.id,
         supabase,
       });
       return "skipped";
+    }
+
+    if (!shouldBypassPartyStatementQualityGate(summary)) {
+      const quality = getStatementSentenceQualityDecision({
+        confidence: extraction.confidence,
+        coreSentence: extraction.coreSentence,
+        documentType: extraction.documentType,
+        sourceType: "party",
+      });
+
+      if (!quality.publishable) {
+        await markPartyStatementSummarySkipped({
+          errorMessage: `quality_gate:${quality.reason}`,
+          model: extraction.model,
+          promptVersion: extraction.promptVersion,
+          summaryId: summary.id,
+          supabase,
+        });
+        return "skipped";
+      }
     }
 
     if (
@@ -124,6 +145,26 @@ export async function processPartyStatementSummary(
     });
     return "failed";
   }
+}
+
+function getPartyStatementExtractionGuidance(summary: PartyStatementSummaryRow) {
+  if (summary.source_key === "people_power_party") {
+    return "people_power_strong_expression" as const;
+  }
+
+  return undefined;
+}
+
+function shouldBypassPartyStatementQualityGate(
+  summary: PartyStatementSummaryRow,
+) {
+  return summary.source_key === "people_power_party";
+}
+
+function isClearlyInvalidPartyCoreSentence(coreSentence: string) {
+  return /^(국민의힘\s*)?([가-힣]+\s*){0,3}(중앙선대위\s*)?(원내수석대변인|수석대변인|대변인|부대변인|공보단장)\s*[가-힣\s]{2,10}$/.test(
+    coreSentence.replace(/\s+/g, " ").trim(),
+  );
 }
 
 export function getPartyStatementErrorMessage(error: unknown) {

@@ -11,6 +11,7 @@ import {
   extractTelegramStatementSentence,
 } from "./extractor";
 import { extractTelegramStatementSentenceByRule } from "./rule-extractor";
+import { compactStatementExtractionIfUseful } from "./sentence-compaction";
 import { getStatementSentenceQualityDecision } from "@/lib/statement-quality/extraction-quality";
 import {
   getPendingStatementSummaries,
@@ -136,9 +137,13 @@ async function processPendingStatementSummary(
       sourceUrl: summary.source_url,
       textSnapshot: message.text_snapshot,
     };
-    const extraction =
+    const rawExtraction =
       extractTelegramStatementSentenceByRule(extractionInput) ??
       (await extractTelegramStatementSentence(extractionInput));
+    const extraction = await compactStatementExtractionIfUseful({
+      extraction: rawExtraction,
+      textSnapshot: message.text_snapshot,
+    });
 
     if (!extraction.isTargetDocument || !extraction.coreSentence.trim()) {
       await markStatementSummarySkipped({

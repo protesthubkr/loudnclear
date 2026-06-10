@@ -1,9 +1,7 @@
 import { isStatementSentencePublishable } from "@/lib/statement-quality/extraction-quality";
 import { getSupabaseClient } from "@/lib/supabase";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
-import {
-  resolvePartyStatementDisplayTime,
-} from "./public-feed-time";
+import { resolvePartyStatementDisplayTime } from "./public-feed-time";
 import type {
   PartyStatementSummaryPublicRow,
   PublicStatementFeedItem,

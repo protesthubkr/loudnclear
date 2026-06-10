@@ -23,7 +23,7 @@ export function buildTelegramStatementExtractionResult(
       documentType: output.document_type,
       isTargetDocument: false,
       model,
-      promptVersion: TELEGRAM_STATEMENT_EXTRACTION_PROMPT_VERSION,
+      promptVersion: getStatementExtractionPromptVersion(input),
       reason: output.reason.trim(),
     };
   }
@@ -42,7 +42,17 @@ export function buildTelegramStatementExtractionResult(
     documentType: output.document_type,
     isTargetDocument: true,
     model,
-    promptVersion: TELEGRAM_STATEMENT_EXTRACTION_PROMPT_VERSION,
+    promptVersion: getStatementExtractionPromptVersion(input),
     reason: output.reason.trim(),
   };
+}
+
+function getStatementExtractionPromptVersion(
+  input: ExtractTelegramStatementSentenceInput,
+) {
+  if (input.extractionGuidance === "people_power_strong_expression") {
+    return `${TELEGRAM_STATEMENT_EXTRACTION_PROMPT_VERSION}+people_power_strong_v1`;
+  }
+
+  return TELEGRAM_STATEMENT_EXTRACTION_PROMPT_VERSION;
 }

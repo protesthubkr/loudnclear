@@ -19,8 +19,10 @@ import {
 } from "@/lib/telegram-statements/public-feed-window";
 import { groupStatementItemsByDate } from "./statement-date-groups";
 import { StatementFeedRow } from "./statement-feed-row";
+import { getStatementProfile } from "./statement-profile";
 
 type StatementFeedListProps = {
+  hiddenOrganizationLabels?: ReadonlySet<string>;
   initialHasMoreBefore: boolean;
   initialItems: PublicStatementFeedItem[];
   initialWindow: StatementFeedWindow;
@@ -45,8 +47,10 @@ const DEFAULT_PULL_LOAD_STATE: PullLoadState = {
   isReady: false,
   progress: 0,
 };
+const EMPTY_HIDDEN_ORGANIZATION_LABELS = new Set<string>();
 
 export function StatementFeedList({
+  hiddenOrganizationLabels = EMPTY_HIDDEN_ORGANIZATION_LABELS,
   initialHasMoreBefore,
   initialItems,
   initialWindow,
@@ -61,7 +65,17 @@ export function StatementFeedList({
   const [restoreVersion, setRestoreVersion] = useState(0);
   const didInitialScrollRef = useRef(false);
   const pendingScrollRestoreRef = useRef<ScrollSnapshot | null>(null);
-  const dateGroups = useMemo(() => groupStatementItemsByDate(items), [items]);
+  const visibleItems = useMemo(
+    () =>
+      items.filter(
+        (item) => !hiddenOrganizationLabels.has(getStatementProfile(item).label),
+      ),
+    [hiddenOrganizationLabels, items],
+  );
+  const dateGroups = useMemo(
+    () => groupStatementItemsByDate(visibleItems),
+    [visibleItems],
+  );
 
   const loadPreviousWindow = useCallback(async (source: LoadPreviousSource) => {
     if (isLoadingPrevious || !hasMoreBefore) {
@@ -192,7 +206,11 @@ export function StatementFeedList({
           ))
         ) : (
           <div className="statement-empty statement-empty--inline">
-            <h2>아직 공개된 성명문이 없습니다</h2>
+            <h2>
+              {items.length > 0
+                ? "선택한 단체의 성명문이 없습니다"
+                : "아직 공개된 성명문이 없습니다"}
+            </h2>
           </div>
         )}
       </section>

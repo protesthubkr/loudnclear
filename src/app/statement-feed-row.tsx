@@ -21,8 +21,8 @@ export function StatementFeedRow({ item }: { item: PublicStatementFeedItem }) {
   const avatarLabel = getAvatarLabel(profile.label);
   const displayTime = formatStatementTime(item);
   const widthClassName = getStatementRowWidthClass(item.coreSentence);
-  const rowRef = useRef<HTMLAnchorElement>(null);
-  const bubbleRef = useRef<HTMLSpanElement>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const bubbleRef = useRef<HTMLAnchorElement>(null);
   const sentenceRef = useRef<HTMLSpanElement>(null);
 
   useMeasuredBubbleWidth({
@@ -33,13 +33,9 @@ export function StatementFeedRow({ item }: { item: PublicStatementFeedItem }) {
   });
 
   return (
-    <a
-      aria-label={`${item.organizationName} - ${item.coreSentence}`}
+    <div
       className={`statement-feed-row statement-feed-row--${side} ${widthClassName}`}
-      href={item.sourceUrl}
       ref={rowRef}
-      rel="noreferrer"
-      target="_blank"
     >
       <span className="statement-author">
         {profile.logoSrc ? (
@@ -68,18 +64,25 @@ export function StatementFeedRow({ item }: { item: PublicStatementFeedItem }) {
         </span>
       </span>
       <span className="statement-message">
-        <span className="statement-bubble" ref={bubbleRef}>
+        <a
+          aria-label={`${item.organizationName} - ${item.coreSentence}`}
+          className="statement-bubble"
+          href={item.sourceUrl}
+          ref={bubbleRef}
+          rel="noreferrer"
+          target="_blank"
+        >
           <span className="statement-core-sentence" ref={sentenceRef}>
             {item.coreSentence}
           </span>
-        </span>
+        </a>
         {displayTime ? (
           <time className="statement-time" dateTime={item.messageCreatedAt ?? ""}>
             {displayTime}
           </time>
         ) : null}
       </span>
-    </a>
+    </div>
   );
 }
 
@@ -89,8 +92,8 @@ function useMeasuredBubbleWidth({
   sentence,
   sentenceRef,
 }: {
-  bubbleRef: RefObject<HTMLSpanElement | null>;
-  rowRef: RefObject<HTMLAnchorElement | null>;
+  bubbleRef: RefObject<HTMLAnchorElement | null>;
+  rowRef: RefObject<HTMLDivElement | null>;
   sentence: string;
   sentenceRef: RefObject<HTMLSpanElement | null>;
 }) {
@@ -109,28 +112,52 @@ function useMeasuredBubbleWidth({
 
     let frameId = 0;
     let secondFrameId = 0;
+    let lastMeasuredRowWidth = 0;
+
+    function cancelPendingMeasurement() {
+      window.cancelAnimationFrame(frameId);
+      window.cancelAnimationFrame(secondFrameId);
+      frameId = 0;
+      secondFrameId = 0;
+    }
 
     function measure() {
+      const rowWidth = Math.round(currentRow.getBoundingClientRect().width);
+
+      if (
+        rowWidth > 0 &&
+        rowWidth === lastMeasuredRowWidth &&
+        currentRow.classList.contains("is-width-measured")
+      ) {
+        return;
+      }
+
+      lastMeasuredRowWidth = rowWidth;
+      cancelPendingMeasurement();
       currentRow.classList.remove("is-width-measured");
       currentRow.classList.add("is-width-probing");
       currentRow.style.removeProperty("--statement-measured-bubble-width");
 
       frameId = window.requestAnimationFrame(() => {
         secondFrameId = window.requestAnimationFrame(() => {
-          const measuredWidth = getMeasuredBubbleWidth(
+          const measuredBubble = getMeasuredBubbleMetrics(
             currentBubble,
             currentSentenceElement,
           );
 
-          if (!measuredWidth) {
+          if (!measuredBubble) {
             currentRow.classList.remove("is-width-probing");
             return;
           }
 
           currentRow.classList.remove("is-width-probing");
+          currentRow.classList.toggle(
+            "is-single-line-bubble",
+            measuredBubble.lineCount === 1,
+          );
           currentRow.style.setProperty(
             "--statement-measured-bubble-width",
-            `${measuredWidth}px`,
+            `${measuredBubble.width}px`,
           );
           currentRow.classList.add("is-width-measured");
         });
@@ -141,15 +168,14 @@ function useMeasuredBubbleWidth({
     window.addEventListener("resize", measure);
 
     return () => {
-      window.cancelAnimationFrame(frameId);
-      window.cancelAnimationFrame(secondFrameId);
+      cancelPendingMeasurement();
       window.removeEventListener("resize", measure);
     };
   }, [bubbleRef, rowRef, sentence, sentenceRef]);
 }
 
-function getMeasuredBubbleWidth(
-  bubble: HTMLSpanElement,
+function getMeasuredBubbleMetrics(
+  bubble: HTMLElement,
   sentenceElement: HTMLSpanElement,
 ) {
   const range = document.createRange();
@@ -171,9 +197,12 @@ function getMeasuredBubbleWidth(
     readPixelValue(bubbleStyle.borderRightWidth);
   const widestLine = Math.max(...lineRects.map((rect) => rect.width));
 
-  return Math.ceil(
-    widestLine + horizontalChrome + BUBBLE_WIDTH_MEASUREMENT_SLACK_PX,
-  );
+  return {
+    lineCount: lineRects.length,
+    width: Math.ceil(
+      widestLine + horizontalChrome + BUBBLE_WIDTH_MEASUREMENT_SLACK_PX,
+    ),
+  };
 }
 
 function readPixelValue(value: string) {

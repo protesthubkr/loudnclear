@@ -8,6 +8,7 @@ import {
   buildTelegramStatementExtractionResult,
   parseStatementExtractionOutput,
 } from "./extractor";
+import { compactStatementExtractionIfUseful } from "./sentence-compaction";
 import {
   getRequiredSupabaseAdminClient,
   getStatementSummaryForExtraction,
@@ -79,7 +80,7 @@ export async function importBatchResultLine(line: string) {
 
   try {
     const output = parseStatementExtractionOutput(parsed.response?.body);
-    const extraction = buildTelegramStatementExtractionResult(
+    const rawExtraction = buildTelegramStatementExtractionResult(
       {
         documentTypeHint: summary.document_type,
         organizationName: summary.organization_name,
@@ -89,6 +90,10 @@ export async function importBatchResultLine(line: string) {
       output,
       readResponseModel(parsed.response?.body) ?? getStatementExtractionModel(),
     );
+    const extraction = await compactStatementExtractionIfUseful({
+      extraction: rawExtraction,
+      textSnapshot: message.text_snapshot,
+    });
 
     if (!extraction.isTargetDocument || !extraction.coreSentence.trim()) {
       await markStatementSummarySkipped({

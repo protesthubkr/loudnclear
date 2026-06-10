@@ -20,8 +20,11 @@ export type TelegramStatementSentenceExtractionResult = {
   reason: string;
 };
 
+export type StatementExtractionGuidance = "people_power_strong_expression";
+
 export type ExtractTelegramStatementSentenceInput = {
   documentTypeHint: TelegramStatementDocumentType;
+  extractionGuidance?: StatementExtractionGuidance;
   organizationName: string;
   sourceUrl: string;
   textSnapshot: string;

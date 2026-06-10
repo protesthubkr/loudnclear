@@ -11,6 +11,13 @@ const gowunBatang = Gowun_Batang({
   weight: ["400", "700"],
 });
 
+const OPEN_GRAPH_IMAGE = {
+  alt: SITE_NAME,
+  height: 839,
+  url: "/opengraph-image.png",
+  width: 1566,
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   title: {
@@ -22,14 +29,17 @@ export const metadata: Metadata = {
   openGraph: {
     title: SITE_NAME,
     description: SITE_DESCRIPTION,
+    images: [OPEN_GRAPH_IMAGE],
     locale: "ko_KR",
     siteName: SITE_NAME,
     type: "website",
+    url: "/",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: SITE_NAME,
     description: SITE_DESCRIPTION,
+    images: [OPEN_GRAPH_IMAGE],
   },
 };
 

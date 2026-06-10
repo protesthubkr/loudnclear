@@ -1,9 +1,13 @@
 const DEFAULT_STATEMENT_EXTRACTION_MODEL = "gpt-5-nano";
+const DEFAULT_STATEMENT_COMPACTION_MODEL = "gpt-5-nano";
 const DEFAULT_STATEMENT_EXTRACTION_MAX_OUTPUT_TOKENS = 1200;
+const DEFAULT_STATEMENT_COMPACTION_MAX_OUTPUT_TOKENS = 400;
 const DEFAULT_STATEMENT_EXTRACTION_INPUT_CHARS = 3000;
+const DEFAULT_STATEMENT_COMPACTION_INPUT_CHARS = 2500;
 const DEFAULT_STATEMENT_EXTRACTION_LIMIT = 10;
 const DEFAULT_STATEMENT_EXTRACTION_MAX_ATTEMPTS = 3;
 const DEFAULT_STATEMENT_PROMPT_CACHE_KEY = "telegram_statement_sentence_v3";
+const DEFAULT_STATEMENT_COMPACTION_MIN_CHARS = 95;
 
 export function getStatementExtractionModel() {
   return (
@@ -27,6 +31,63 @@ export function getStatementExtractionMaxOutputTokens() {
   }
 
   return Math.min(Math.max(parsed, 400), 4000);
+}
+
+export function getStatementCompactionModel() {
+  return (
+    process.env.OPENAI_STATEMENT_COMPACTION_MODEL?.trim() ||
+    process.env.OPENAI_STATEMENT_EXTRACTION_MODEL?.trim() ||
+    process.env.OPENAI_EXTRACTION_MODEL?.trim() ||
+    DEFAULT_STATEMENT_COMPACTION_MODEL
+  );
+}
+
+export function getStatementCompactionMaxOutputTokens() {
+  const value = process.env.OPENAI_STATEMENT_COMPACTION_MAX_OUTPUT_TOKENS;
+
+  if (!value) {
+    return DEFAULT_STATEMENT_COMPACTION_MAX_OUTPUT_TOKENS;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_STATEMENT_COMPACTION_MAX_OUTPUT_TOKENS;
+  }
+
+  return Math.min(Math.max(parsed, 150), 1000);
+}
+
+export function getStatementCompactionInputChars() {
+  const value = process.env.OPENAI_STATEMENT_COMPACTION_INPUT_CHARS;
+
+  if (!value) {
+    return DEFAULT_STATEMENT_COMPACTION_INPUT_CHARS;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_STATEMENT_COMPACTION_INPUT_CHARS;
+  }
+
+  return Math.min(Math.max(parsed, 1000), 8000);
+}
+
+export function getStatementCompactionMinChars() {
+  const value = process.env.OPENAI_STATEMENT_COMPACTION_MIN_CHARS;
+
+  if (!value) {
+    return DEFAULT_STATEMENT_COMPACTION_MIN_CHARS;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_STATEMENT_COMPACTION_MIN_CHARS;
+  }
+
+  return Math.min(Math.max(parsed, 60), 220);
 }
 
 export function getStatementExtractionInputChars() {

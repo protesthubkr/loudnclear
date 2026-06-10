@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import {
   getPublicStatementFeedItems,
   hasPublicStatementFeedItemsBefore,
@@ -8,7 +7,7 @@ import {
   getCurrentStatementFeedWindow,
   STATEMENT_FEED_WINDOW_ITEM_LIMIT,
 } from "@/lib/telegram-statements/public-feed-window";
-import { StatementFeedList } from "./statement-feed-list";
+import { StatementFeedShell } from "./statement-feed-shell";
 import { SITE_DESCRIPTION, SITE_NAME } from "./site";
 
 export const revalidate = 60;
@@ -31,24 +30,10 @@ export default async function HomePage() {
   ]);
 
   return (
-    <main className="statement-shell">
-      <header className="statement-topbar">
-        <h1>{SITE_NAME}</h1>
-        <Image
-          alt=""
-          aria-hidden="true"
-          className="statement-topbar-bird"
-          height={327}
-          priority
-          src="/bird.png"
-          width={306}
-        />
-      </header>
-      <StatementFeedList
-        initialHasMoreBefore={hasMoreBefore}
-        initialItems={items}
-        initialWindow={initialWindow}
-      />
-    </main>
+    <StatementFeedShell
+      initialHasMoreBefore={hasMoreBefore}
+      initialItems={items}
+      initialWindow={initialWindow}
+    />
   );
 }
