@@ -100,7 +100,6 @@ export async function processPartyStatementSummary(
         confidence: extraction.confidence,
         coreSentence: extraction.coreSentence,
         documentType: extraction.documentType,
-        sourceType: "party",
       });
 
       if (!quality.publishable) {

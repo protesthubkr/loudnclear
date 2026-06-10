@@ -1,4 +1,4 @@
-import type { PublicStatementFeedItem } from "@/lib/telegram-statements/public-feed";
+import type { PublicStatementFeedItem } from "@/lib/telegram-statements/public-feed-types";
 
 export function formatStatementTime(item: PublicStatementFeedItem) {
   if (item.isTimeUnknown) {

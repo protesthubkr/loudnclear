@@ -1,12 +1,9 @@
 import type { TelegramStatementDocumentType } from "@/lib/telegram-statements/types";
 
-export type StatementQualitySourceType = "party" | "telegram";
-
 export type StatementSentenceQualityInput = {
   confidence?: number | null;
   coreSentence: string | null;
   documentType?: string | null;
-  sourceType?: StatementQualitySourceType;
 };
 
 export type StatementSentenceQualityDecision = {

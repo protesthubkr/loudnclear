@@ -58,6 +58,7 @@ statement topic matching은 원문 `text_snapshot` embedding 기준으로 동작
 - 401: `CRON_SECRET` 불일치 또는 누락
 - 500 with Supabase message: service role 또는 schema 누락
 - OpenAI error: `OPENAI_API_KEY`, model, output token 설정 확인
+- reasoning 설정 오류: `OPENAI_STATEMENT_REASONING_EFFORT` 값 확인
 - party source empty: parser 변경 또는 source site HTML 변경 확인
 - topic no match: confirmed telegram topic 생성 여부와 threshold 확인
 

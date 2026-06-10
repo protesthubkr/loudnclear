@@ -68,7 +68,6 @@ export async function prepareStatementForBatch({
       confidence: ruleExtraction.confidence,
       coreSentence: ruleExtraction.coreSentence,
       documentType: ruleExtraction.documentType,
-      sourceType: "telegram",
     });
 
     if (!dryRun) {

@@ -100,7 +100,7 @@ const TOPIC_ALIAS_GROUPS = [
   },
 ];
 
-export function hasTopicLexicalSupport(
+function hasTopicLexicalSupport(
   first: TopicLexicalSource,
   second: TopicLexicalSource,
   similarity: number,

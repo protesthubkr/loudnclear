@@ -12,7 +12,6 @@ const DEFAULT_STATEMENT_COMPACTION_MIN_CHARS = 95;
 export function getStatementExtractionModel() {
   return (
     process.env.OPENAI_STATEMENT_EXTRACTION_MODEL?.trim() ||
-    process.env.OPENAI_EXTRACTION_MODEL?.trim() ||
     DEFAULT_STATEMENT_EXTRACTION_MODEL
   );
 }
@@ -37,7 +36,6 @@ export function getStatementCompactionModel() {
   return (
     process.env.OPENAI_STATEMENT_COMPACTION_MODEL?.trim() ||
     process.env.OPENAI_STATEMENT_EXTRACTION_MODEL?.trim() ||
-    process.env.OPENAI_EXTRACTION_MODEL?.trim() ||
     DEFAULT_STATEMENT_COMPACTION_MODEL
   );
 }
@@ -91,9 +89,7 @@ export function getStatementCompactionMinChars() {
 }
 
 export function getStatementExtractionInputChars() {
-  const value =
-    process.env.OPENAI_STATEMENT_EXTRACTION_INPUT_CHARS ??
-    process.env.TELEGRAM_STATEMENT_EXTRACTION_INPUT_CHARS;
+  const value = process.env.OPENAI_STATEMENT_EXTRACTION_INPUT_CHARS;
 
   if (!value) {
     return DEFAULT_STATEMENT_EXTRACTION_INPUT_CHARS;

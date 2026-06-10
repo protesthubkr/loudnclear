@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  getPublicStatementFeedItems,
-  hasPublicStatementFeedItemsBefore,
-} from "@/lib/telegram-statements/public-feed";
+import { getPublicStatementFeedWindow } from "@/lib/telegram-statements/public-feed";
 import {
   STATEMENT_FEED_WINDOW_ITEM_LIMIT,
   type PublicStatementFeedWindowResponse,
 } from "@/lib/telegram-statements/public-feed-window";
 
-export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+const STATEMENT_API_CACHE_CONTROL =
+  "public, s-maxage=60, stale-while-revalidate=300";
 
 export async function GET(request: NextRequest) {
   const parsedWindow = parseStatementWindow(request);
@@ -18,20 +16,24 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid window." }, { status: 400 });
   }
 
-  const items = await getPublicStatementFeedItems({
+  const { hasMoreBefore, items } = await getPublicStatementFeedWindow({
     fromIso: parsedWindow.from,
     limit: STATEMENT_FEED_WINDOW_ITEM_LIMIT,
     toIso: parsedWindow.to,
   });
-  const hasMoreBefore = await hasPublicStatementFeedItemsBefore(
-    parsedWindow.from,
-  );
 
-  return NextResponse.json({
-    hasMoreBefore,
-    items,
-    window: parsedWindow,
-  } satisfies PublicStatementFeedWindowResponse);
+  return NextResponse.json(
+    {
+      hasMoreBefore,
+      items,
+      window: parsedWindow,
+    } satisfies PublicStatementFeedWindowResponse,
+    {
+      headers: {
+        "Cache-Control": STATEMENT_API_CACHE_CONTROL,
+      },
+    },
+  );
 }
 
 function parseStatementWindow(request: NextRequest) {

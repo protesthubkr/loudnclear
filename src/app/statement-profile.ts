@@ -1,4 +1,4 @@
-import type { PublicStatementFeedItem } from "@/lib/telegram-statements/public-feed";
+import type { PublicStatementFeedItem } from "@/lib/telegram-statements/public-feed-types";
 
 export type StatementProfile = {
   label: string;

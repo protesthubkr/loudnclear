@@ -13,7 +13,7 @@
 ## 적용 파일
 
 - Canonical schema: [supabase/schema.sql](../supabase/schema.sql)
-- Migration placeholder: [supabase/migrations/20260610000000_initial_schema.sql](../supabase/migrations/20260610000000_initial_schema.sql)
+- Incremental migrations: [supabase/migrations](../supabase/migrations)
 
 새 Supabase 프로젝트에는 `supabase/schema.sql` 전체를 먼저 적용한다.
 
@@ -38,7 +38,8 @@ Telegram 수집:
 - `statement_topic_links`
 
 공개 읽기:
-- `public_statement_feed_items`
+- `telegram_statement_summaries`
+- `party_statement_summaries`
 
 ## 공개 정책
 
@@ -46,8 +47,6 @@ Telegram 수집:
 
 - Telegram: `status = 'extracted' and core_sentence is not null`
 - Party: `status = 'extracted' and core_sentence is not null and topic_gate_status = 'matched'`
-
-장기적으로는 public feed query를 `public_statement_feed_items` view로 옮기고, summary table 직접 grant를 제거하는 것이 더 좋다.
 
 ## 인덱스 기준
 
@@ -64,7 +63,7 @@ Telegram 수집:
 
 Vercel build에서 `public.telegram_statement_summaries`가 없어서 `/` prerender가 실패한 경우, 이 schema를 적용하면 테이블 누락 문제는 해결된다.
 
-다만 공개 피드는 런타임 데이터이므로, 앱 코드도 `/`를 dynamic rendering으로 전환하고 테이블 누락 시 빈 feed로 떨어지게 만드는 것이 안전하다.
+다만 공개 피드는 런타임 데이터이므로, 앱 코드는 초기 렌더와 `/api/statements` 모두에서 데이터 누락 시 빈 feed로 떨어지게 유지한다.
 
 ## 다음 refactor 후보
 
@@ -72,5 +71,4 @@ v2에서는 다음 통합을 고려한다.
 
 - `telegram_statement_messages`와 `party_statement_documents`를 `source_documents`로 통합
 - `telegram_statement_summaries`와 `party_statement_summaries`를 `statement_extractions`로 통합
-- public page는 `public_statement_feed_items` view만 조회
 - source별 parser 설정을 `statement_sources.fetch_config` jsonb로 이동

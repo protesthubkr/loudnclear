@@ -70,18 +70,6 @@ export function findBestTopicMatch(
     .sort((first, second) => second.similarity - first.similarity)[0];
 }
 
-export function findBestTelegramMatch(
-  embedding: number[],
-  telegramRows: EmbeddedTelegramSummary[],
-) {
-  return telegramRows
-    .map((telegram) => ({
-      similarity: cosineSimilarity(embedding, telegram.embedding),
-      telegram,
-    }))
-    .sort((first, second) => second.similarity - first.similarity)[0];
-}
-
 function findBestCluster(embedding: number[], clusters: TopicCluster[]) {
   return clusters
     .map((cluster) => ({

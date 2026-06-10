@@ -534,44 +534,6 @@ create index if not exists statement_sentence_llm_selections_status_idx
     display_at desc nulls last
   );
 
-create or replace view public.public_statement_feed_items
-with (security_invoker = true)
-as
-select
-  'telegram'::text as source_type,
-  id as source_summary_id,
-  channel_username as source_key,
-  organization_name,
-  source_url,
-  message_created_at as display_at,
-  false as is_time_unknown,
-  document_type,
-  core_sentence,
-  extraction_confidence,
-  null::text as topic_gate_status,
-  null::numeric(6, 5) as topic_match_confidence
-from public.telegram_statement_summaries
-where status = 'extracted' and core_sentence is not null
-union all
-select
-  'party'::text as source_type,
-  id as source_summary_id,
-  source_key,
-  organization_name,
-  source_url,
-  published_at as display_at,
-  false as is_time_unknown,
-  document_type,
-  core_sentence,
-  extraction_confidence,
-  topic_gate_status,
-  topic_match_confidence
-from public.party_statement_summaries
-where
-  status = 'extracted'
-  and core_sentence is not null
-  and topic_gate_status = 'matched';
-
 drop trigger if exists set_updated_at_telegram_channel_subscriptions
   on public.telegram_channel_subscriptions;
 create trigger set_updated_at_telegram_channel_subscriptions
@@ -659,7 +621,6 @@ grant usage on schema public to anon, authenticated;
 
 grant select on public.telegram_statement_summaries to anon, authenticated;
 grant select on public.party_statement_summaries to anon, authenticated;
-grant select on public.public_statement_feed_items to anon, authenticated;
 
 drop policy if exists telegram_statement_summaries_public_read
   on public.telegram_statement_summaries;

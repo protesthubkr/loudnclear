@@ -97,9 +97,7 @@ export function StatementFeedList({
     setLoadError(null);
 
     try {
-      const response = await fetch(`/api/statements?${params.toString()}`, {
-        cache: "no-store",
-      });
+      const response = await fetch(`/api/statements?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error(`Request failed with ${response.status}`);

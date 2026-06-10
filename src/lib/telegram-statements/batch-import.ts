@@ -110,7 +110,6 @@ export async function importBatchResultLine(line: string) {
       confidence: extraction.confidence,
       coreSentence: extraction.coreSentence,
       documentType: extraction.documentType,
-      sourceType: "telegram",
     });
 
     if (!quality.publishable) {

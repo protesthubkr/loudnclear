@@ -1,58 +1,9 @@
 import "server-only";
 
-import { fetchTelegramHtml, getMetaContent, normalizeText } from "./html";
-
-export type TelegramMessageLocator = {
-  channel: string;
-  externalId: string;
-  messageId: string;
-  sourceUrl: string;
-};
-
-export type TelegramMessageImageFetchResult = {
-  fetchedUrl: string | null;
-  imageUrls: string[];
-};
+import { getMetaContent, normalizeText } from "./html";
 
 const TELEGRAM_MESSAGE_IMAGE_CLASS_PATTERN =
   /<[^>]*\b(?:tgme_widget_message_photo_wrap|tgme_widget_message_video_thumb)\b[^>]*>/gi;
-
-export async function fetchTelegramMessageImageUrls(
-  message: TelegramMessageLocator,
-): Promise<TelegramMessageImageFetchResult> {
-  for (const url of createTelegramMessageFetchUrls(message)) {
-    try {
-      const html = await fetchTelegramHtml(url);
-      const imageUrls = extractTelegramMessageImageUrls(html);
-
-      if (imageUrls.length > 0) {
-        return {
-          fetchedUrl: url,
-          imageUrls,
-        };
-      }
-    } catch {
-      continue;
-    }
-  }
-
-  return {
-    fetchedUrl: null,
-    imageUrls: [],
-  };
-}
-
-export function createTelegramMessageFetchUrls(message: TelegramMessageLocator) {
-  if (message.channel.startsWith("c/")) {
-    return [`${message.sourceUrl}?embed=1&mode=tme`, message.sourceUrl];
-  }
-
-  return [
-    `${message.sourceUrl}?embed=1&mode=tme`,
-    `https://t.me/s/${message.channel}/${message.messageId}`,
-    message.sourceUrl,
-  ];
-}
 
 export function extractTelegramMessageImageUrls(html: string) {
   return uniqueNonEmpty([

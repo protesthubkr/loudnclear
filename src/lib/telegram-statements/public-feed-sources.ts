@@ -8,28 +8,31 @@ import type {
   StatementSummaryPublicRow,
 } from "./public-feed-types";
 
-export type PublicStatementSourceQuery = {
+const HAS_MORE_BEFORE_CANDIDATE_LIMIT = 500;
+
+type PublicStatementSourceQuery = {
   fromIso?: string;
   limit: number;
   toIso?: string;
 };
 
+type PublicTelegramStatementSourceQuery = PublicStatementSourceQuery & {
+  confirmedTelegramSummaryIds: string[];
+};
+
 export async function getPublicTelegramStatementItems({
+  confirmedTelegramSummaryIds,
   fromIso,
   limit,
   toIso,
-}: PublicStatementSourceQuery) {
+}: PublicTelegramStatementSourceQuery) {
   const supabase = getSupabaseClient();
 
   if (!supabase) {
     return [] satisfies PublicStatementFeedItem[];
   }
 
-  const confirmedSummaryIds = await getConfirmedTelegramStatementSummaryIds(
-    limit,
-  );
-
-  if (confirmedSummaryIds.length === 0) {
+  if (confirmedTelegramSummaryIds.length === 0) {
     return [] satisfies PublicStatementFeedItem[];
   }
 
@@ -47,7 +50,7 @@ export async function getPublicTelegramStatementItems({
       ].join(","),
     )
     .eq("status", "extracted")
-    .in("id", confirmedSummaryIds);
+    .in("id", confirmedTelegramSummaryIds);
 
   if (fromIso) {
     query = query.gte("message_created_at", fromIso);
@@ -71,7 +74,6 @@ export async function getPublicTelegramStatementItems({
         confidence: row.extraction_confidence,
         coreSentence: row.core_sentence,
         documentType: row.document_type,
-        sourceType: "telegram",
       }),
     )
     .map((row) => ({
@@ -86,35 +88,55 @@ export async function getPublicTelegramStatementItems({
     }));
 }
 
-export async function hasPublicTelegramStatementItemsBefore(beforeIso: string) {
+export async function hasPublicTelegramStatementItemsBefore(
+  beforeIso: string,
+  confirmedTelegramSummaryIds: string[],
+) {
   const supabase = getSupabaseClient();
 
   if (!supabase) {
     return false;
   }
 
-  const confirmedSummaryIds = await getConfirmedTelegramStatementSummaryIds(500);
-
-  if (confirmedSummaryIds.length === 0) {
+  if (confirmedTelegramSummaryIds.length === 0) {
     return false;
   }
 
   const { data, error } = await supabase
     .from("telegram_statement_summaries")
-    .select("id")
+    .select(
+      [
+        "id",
+        "organization_name",
+        "source_url",
+        "message_created_at",
+        "document_type",
+        "core_sentence",
+        "extraction_confidence",
+      ].join(","),
+    )
     .eq("status", "extracted")
-    .in("id", confirmedSummaryIds)
+    .in("id", confirmedTelegramSummaryIds)
+    .not("core_sentence", "is", null)
     .lt("message_created_at", beforeIso)
-    .limit(1);
+    .order("message_created_at", { ascending: false, nullsFirst: false })
+    .limit(HAS_MORE_BEFORE_CANDIDATE_LIMIT);
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return ((data as Array<{ id: string }> | null) ?? []).length > 0;
+  return ((data as unknown as StatementSummaryPublicRow[] | null) ?? []).some(
+    (row) =>
+      isStatementSentencePublishable({
+        confidence: row.extraction_confidence,
+        coreSentence: row.core_sentence,
+        documentType: row.document_type,
+      }),
+  );
 }
 
-async function getConfirmedTelegramStatementSummaryIds(limit: number) {
+export async function getConfirmedTelegramStatementSummaryIds(limit: number) {
   const supabase = getSupabaseAdminClient();
 
   if (!supabase) {
@@ -212,7 +234,6 @@ export async function getPublicPartyStatementItems({
         confidence: row.extraction_confidence,
         coreSentence: row.core_sentence,
         documentType: row.document_type,
-        sourceType: "party",
       }),
     )
     .map((row) => {
@@ -244,17 +265,39 @@ export async function hasPublicPartyStatementItemsBefore(beforeIso: string) {
 
   const { data, error } = await supabase
     .from("party_statement_summaries")
-    .select("id")
+    .select(
+      [
+        "id",
+        "organization_name",
+        "source_key",
+        "source_url",
+        "published_at",
+        "created_at",
+        "document_type",
+        "core_sentence",
+        "extraction_confidence",
+        "topic_gate_status",
+      ].join(","),
+    )
     .eq("status", "extracted")
     .eq("topic_gate_status", "matched")
+    .not("core_sentence", "is", null)
     .lt("published_at", beforeIso)
-    .limit(1);
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .limit(HAS_MORE_BEFORE_CANDIDATE_LIMIT);
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return ((data as Array<{ id: string }> | null) ?? []).length > 0;
+  return ((data as unknown as PartyStatementSummaryPublicRow[] | null) ?? []).some(
+    (row) =>
+      isStatementSentencePublishable({
+        confidence: row.extraction_confidence,
+        coreSentence: row.core_sentence,
+        documentType: row.document_type,
+      }),
+  );
 }
 
 function normalizeFeedSentence(value: string | null) {

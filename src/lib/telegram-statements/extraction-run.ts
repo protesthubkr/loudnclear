@@ -160,7 +160,6 @@ async function processPendingStatementSummary(
       confidence: extraction.confidence,
       coreSentence: extraction.coreSentence,
       documentType: extraction.documentType,
-      sourceType: "telegram",
     });
 
     if (!quality.publishable) {

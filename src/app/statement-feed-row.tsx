@@ -3,7 +3,7 @@
 import Image from "next/image";
 import type { RefObject } from "react";
 import { useLayoutEffect, useRef } from "react";
-import type { PublicStatementFeedItem } from "@/lib/telegram-statements/public-feed";
+import type { PublicStatementFeedItem } from "@/lib/telegram-statements/public-feed-types";
 import { formatStatementTime } from "./statement-format";
 import {
   getAvatarLabel,

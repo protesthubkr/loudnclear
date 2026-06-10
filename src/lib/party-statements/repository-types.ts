@@ -13,12 +13,3 @@ export type PartyStatementSummaryRow = {
   status: "pending" | "extracted" | "skipped" | "failed";
   title: string;
 };
-
-export type PublicPartyStatementRow = {
-  core_sentence: string | null;
-  document_type: string;
-  id: string;
-  organization_name: string;
-  published_at: string | null;
-  source_url: string;
-};
