@@ -8,6 +8,7 @@ export type PartyStatementSourceKey =
 export type PartyStatementSourceDefinition = {
   allowInsecureTls?: boolean;
   listUrl: string;
+  listUrls?: string[];
   organizationName: string;
   sourceKey: PartyStatementSourceKey;
 };
@@ -32,7 +33,7 @@ export type PartyStatementSourceParser = PartyStatementSourceDefinition & {
     html: string,
     listItem: PartyStatementListItem,
   ) => PartyStatementDocument | null;
-  parseList: (html: string) => PartyStatementListItem[];
+  parseList: (html: string, listUrl: string) => PartyStatementListItem[];
 };
 
 export type PartyStatementRunOptions = {

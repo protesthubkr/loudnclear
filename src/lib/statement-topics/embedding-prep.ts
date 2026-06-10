@@ -13,6 +13,7 @@ export async function embedTelegramTopicRows(
   const embedded = await ensureStatementTopicEmbeddings({
     rows: rows.map((row) => ({
       coreSentence: row.core_sentence,
+      fullText: row.text_snapshot,
       id: row.id,
       organizationName: row.organization_name,
       sourceType: "telegram" as const,
@@ -45,6 +46,7 @@ export async function embedPartyTopicRows(rows: PartyTopicSummaryRow[]) {
   const embedded = await ensureStatementTopicEmbeddings({
     rows: rows.map((row) => ({
       coreSentence: row.core_sentence,
+      fullText: row.text_snapshot,
       id: row.id,
       organizationName: row.organization_name,
       sourceType: "party" as const,

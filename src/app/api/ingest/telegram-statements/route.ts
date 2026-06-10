@@ -3,6 +3,8 @@ import { isBearerSecretAuthorized } from "@/lib/bearer-auth";
 import { runTelegramStatementFeedScan } from "@/lib/telegram-statements/run";
 import type { TelegramStatementRunOptions } from "@/lib/telegram-statements/types";
 
+const MAX_WINDOW_HOURS = 744;
+
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
@@ -92,7 +94,7 @@ function parseWindowHours(value: string | null) {
 
   const parsed = Number.parseInt(value, 10);
 
-  if (!Number.isFinite(parsed) || parsed < 1 || parsed > 168) {
+  if (!Number.isFinite(parsed) || parsed < 1 || parsed > MAX_WINDOW_HOURS) {
     throw new TelegramStatementIngestRequestError("Invalid windowHours.");
   }
 

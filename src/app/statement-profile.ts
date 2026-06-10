@@ -46,6 +46,26 @@ const STATEMENT_PROFILES = [
     logoSrc: "/reform-logo.svg",
     patterns: ["개혁신당", "reformparty"],
   },
+  {
+    label: "진보당",
+    logoSrc: "/jinbo-logo.svg",
+    patterns: ["진보당", "jinboparty"],
+  },
+  {
+    label: "참여연대",
+    logoSrc: "/united-logo.jpg",
+    patterns: ["참여연대", "peoplepower21"],
+  },
+  {
+    label: "녹색당",
+    logoSrc: "/green-logo.png",
+    patterns: ["녹색당", "greenpartykorea2012"],
+  },
+  {
+    label: "금속노조",
+    logoSrc: "/metal-logo.jpg",
+    patterns: ["금속노조", "kmwunews"],
+  },
 ] satisfies Array<StatementProfile & { patterns: string[] }>;
 
 const PARTY_STATEMENT_LOGO_SRCS = new Set([
@@ -54,6 +74,8 @@ const PARTY_STATEMENT_LOGO_SRCS = new Set([
   "/minjoo-logo.svg",
   "/ppl-logo.svg",
   "/reform-logo.svg",
+  "/jinbo-logo.svg",
+  "/green-logo.png",
 ]);
 
 export function getStatementProfile(

@@ -12,19 +12,22 @@ import type {
 } from "../types";
 import { buildDocumentText } from "./source-utils";
 
-const THEMINJOO_LIST_URL =
+const THEMINJOO_STATEMENT_LIST_URL =
   "https://theminjoo.kr/main/sub/news/list.php?brd=188";
+const THEMINJOO_BRIEFING_LIST_URL =
+  "https://theminjoo.kr/main/sub/news/list.php?brd=11";
 
 export const THEMINJOO_SOURCE: PartyStatementSourceParser = {
   allowInsecureTls: true,
-  listUrl: THEMINJOO_LIST_URL,
-  organizationName: "더불어민주당",
+  listUrl: THEMINJOO_STATEMENT_LIST_URL,
+  listUrls: [THEMINJOO_STATEMENT_LIST_URL, THEMINJOO_BRIEFING_LIST_URL],
+  organizationName: "민주당",
   parseDetail: parseTheminjooDetail,
   parseList: parseTheminjooList,
   sourceKey: "theminjoo",
 };
 
-function parseTheminjooList(html: string) {
+function parseTheminjooList(html: string, listUrl: string) {
   return html
     .split(/<div\s+class=["']board-item\b/i)
     .slice(1)
@@ -64,7 +67,7 @@ function parseTheminjooList(html: string) {
           publishedAt: parseKoreanDateTime(date),
           rawCategory,
           sourceKey: "theminjoo",
-          sourceUrl: absoluteUrl(href, THEMINJOO_LIST_URL),
+          sourceUrl: absoluteUrl(href, listUrl),
           title,
         } satisfies PartyStatementListItem,
       ];
@@ -108,7 +111,7 @@ function parseTheminjooDetail(
   return {
     ...listItem,
     documentType,
-    organizationName: "더불어민주당",
+    organizationName: "민주당",
     publishedAt: parseKoreanDateTime(date) ?? listItem.publishedAt,
     rawCategory,
     textSnapshot: buildDocumentText(title, textSnapshot),

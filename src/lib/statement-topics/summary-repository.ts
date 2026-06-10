@@ -23,6 +23,7 @@ export async function getRecentTelegramTopicSummaries({
       [
         "id",
         "channel_username",
+        "message_id",
         "organization_name",
         "source_url",
         "message_created_at",
@@ -41,7 +42,18 @@ export async function getRecentTelegramTopicSummaries({
     throw new Error(error.message);
   }
 
-  return ((data as unknown as TelegramTopicSummaryRow[] | null) ?? []).filter(
+  const rows = (data as unknown as Omit<
+    TelegramTopicSummaryRow,
+    "text_snapshot"
+  >[] | null) ?? [];
+  const textSnapshots = await getTelegramTextSnapshots({ rows, supabase });
+
+  return rows.map((row) => ({
+    ...row,
+    text_snapshot:
+      textSnapshots.get(buildTelegramMessageKey(row.channel_username, row.message_id)) ??
+      "",
+  })).filter(
     (row) =>
       row.message_created_at &&
       isStatementSentencePublishable({
@@ -67,6 +79,7 @@ export async function getRecentPartyTopicSummaries({
     .select(
       [
         "id",
+        "document_id",
         "source_key",
         "organization_name",
         "source_url",
@@ -92,7 +105,16 @@ export async function getRecentPartyTopicSummaries({
     throw new Error(error.message);
   }
 
-  return ((data as unknown as PartyTopicSummaryRow[] | null) ?? []).filter(
+  const rows = (data as unknown as Omit<
+    PartyTopicSummaryRow,
+    "text_snapshot"
+  >[] | null) ?? [];
+  const textSnapshots = await getPartyTextSnapshots({ rows, supabase });
+
+  return rows.map((row) => ({
+    ...row,
+    text_snapshot: textSnapshots.get(row.document_id) ?? "",
+  })).filter(
     (row) =>
       row.published_at &&
       isStatementSentencePublishable({
@@ -102,4 +124,79 @@ export async function getRecentPartyTopicSummaries({
         sourceType: "party",
       }),
   );
+}
+
+async function getTelegramTextSnapshots({
+  rows,
+  supabase,
+}: {
+  rows: Array<{
+    channel_username: string;
+    message_id: number;
+  }>;
+  supabase: SupabaseClient;
+}) {
+  const channels = [...new Set(rows.map((row) => row.channel_username))];
+  const messageIds = [...new Set(rows.map((row) => row.message_id))];
+
+  if (channels.length === 0 || messageIds.length === 0) {
+    return new Map<string, string>();
+  }
+
+  const { data, error } = await supabase
+    .from("telegram_statement_messages")
+    .select("channel_username,message_id,text_snapshot")
+    .in("channel_username", channels)
+    .in("message_id", messageIds);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return new Map(
+    ((data as Array<{
+      channel_username: string;
+      message_id: number;
+      text_snapshot: string | null;
+    }> | null) ?? []).map((row) => [
+      buildTelegramMessageKey(row.channel_username, row.message_id),
+      row.text_snapshot ?? "",
+    ]),
+  );
+}
+
+async function getPartyTextSnapshots({
+  rows,
+  supabase,
+}: {
+  rows: Array<{
+    document_id: string;
+  }>;
+  supabase: SupabaseClient;
+}) {
+  const documentIds = [...new Set(rows.map((row) => row.document_id))];
+
+  if (documentIds.length === 0) {
+    return new Map<string, string>();
+  }
+
+  const { data, error } = await supabase
+    .from("party_statement_documents")
+    .select("id,text_snapshot")
+    .in("id", documentIds);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return new Map(
+    ((data as Array<{
+      id: string;
+      text_snapshot: string | null;
+    }> | null) ?? []).map((row) => [row.id, row.text_snapshot ?? ""]),
+  );
+}
+
+function buildTelegramMessageKey(channelUsername: string, messageId: number) {
+  return `${channelUsername}:${messageId}`;
 }

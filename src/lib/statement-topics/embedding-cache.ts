@@ -20,6 +20,7 @@ export async function ensureStatementTopicEmbeddings({
 }: {
   rows: Array<{
     coreSentence: string;
+    fullText?: string | null;
     id: string;
     organizationName: string;
     sourceType: TopicSourceType;
@@ -52,6 +53,7 @@ export async function ensureStatementTopicEmbeddings({
   for (const row of rows) {
     const text = buildStatementTopicEmbeddingText({
       coreSentence: row.coreSentence,
+      fullText: row.fullText,
       organizationName: row.organizationName,
       title: row.title,
     });

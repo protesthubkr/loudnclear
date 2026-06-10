@@ -50,11 +50,20 @@ export async function runPartyStatementSource({
       await upsertPartyStatementSource({ source, supabase });
     }
 
-    const listHtml = await fetchPartyStatementHtml({
-      allowInsecureTls: source.allowInsecureTls,
-      url: source.listUrl,
-    });
-    const parsedListItems = source.parseList(listHtml);
+    const parsedListItems = (
+      await Promise.all(
+        getSourceListUrls(source).map(async (listUrl) => {
+          const listHtml = await fetchPartyStatementHtml({
+            allowInsecureTls: source.allowInsecureTls,
+            url: listUrl,
+          });
+
+          return source.parseList(listHtml, listUrl);
+        }),
+      )
+    )
+      .flat()
+      .sort(comparePartyListItemsByDateDesc);
     const listItems = parsedListItems
       .filter((listItem) => shouldIncludePartyListItem(listItem, cutoffIso))
       .slice(0, limit);
@@ -143,6 +152,20 @@ export async function runPartyStatementSource({
   }
 
   return result;
+}
+
+function getSourceListUrls(source: PartyStatementSourceParser) {
+  return source.listUrls?.length ? source.listUrls : [source.listUrl];
+}
+
+function comparePartyListItemsByDateDesc(
+  left: PartyStatementDocument | { publishedAt: string | null },
+  right: PartyStatementDocument | { publishedAt: string | null },
+) {
+  const leftTime = left.publishedAt ? Date.parse(left.publishedAt) : 0;
+  const rightTime = right.publishedAt ? Date.parse(right.publishedAt) : 0;
+
+  return rightTime - leftTime;
 }
 
 function shouldIncludePartyListItem(

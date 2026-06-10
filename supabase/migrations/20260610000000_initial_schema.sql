@@ -1,0 +1,6 @@
+-- Apply the canonical 성명뭉 schema from supabase/schema.sql.
+--
+-- This migration file is intentionally a pointer to avoid maintaining two large
+-- SQL copies by hand. For hosted Supabase projects, apply ../schema.sql through
+-- the Supabase SQL editor or copy its contents into a timestamped migration in
+-- your migration runner.

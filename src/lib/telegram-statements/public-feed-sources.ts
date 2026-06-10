@@ -1,5 +1,6 @@
 import { isStatementSentencePublishable } from "@/lib/statement-quality/extraction-quality";
 import { getSupabaseClient } from "@/lib/supabase";
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import {
   resolvePartyStatementDisplayTime,
 } from "./public-feed-time";
@@ -13,6 +14,14 @@ export async function getPublicTelegramStatementItems(limit: number) {
   const supabase = getSupabaseClient();
 
   if (!supabase) {
+    return [] satisfies PublicStatementFeedItem[];
+  }
+
+  const confirmedSummaryIds = await getConfirmedTelegramStatementSummaryIds(
+    limit,
+  );
+
+  if (confirmedSummaryIds.length === 0) {
     return [] satisfies PublicStatementFeedItem[];
   }
 
@@ -30,10 +39,15 @@ export async function getPublicTelegramStatementItems(limit: number) {
       ].join(","),
     )
     .eq("status", "extracted")
+    .in("id", confirmedSummaryIds)
     .order("message_created_at", { ascending: false, nullsFirst: false })
     .limit(limit);
 
   if (error) {
+    if (isMissingStatementTable(error, "telegram_statement_summaries")) {
+      return [] satisfies PublicStatementFeedItem[];
+    }
+
     throw new Error(error.message);
   }
 
@@ -56,6 +70,60 @@ export async function getPublicTelegramStatementItems(limit: number) {
       sourceUrl: row.source_url,
       sourceType: "telegram" as const,
     }));
+}
+
+async function getConfirmedTelegramStatementSummaryIds(limit: number) {
+  const supabase = getSupabaseAdminClient();
+
+  if (!supabase) {
+    return [] as string[];
+  }
+
+  const { data: topics, error: topicsError } = await supabase
+    .from("statement_topics")
+    .select("id")
+    .eq("status", "confirmed")
+    .order("window_ended_at", { ascending: false, nullsFirst: false })
+    .limit(Math.max(limit, 100));
+
+  if (topicsError) {
+    if (isMissingStatementTable(topicsError, "statement_topics")) {
+      return [] as string[];
+    }
+
+    throw new Error(topicsError.message);
+  }
+
+  const topicIds = ((topics as Array<{ id: string }> | null) ?? []).map(
+    (topic) => topic.id,
+  );
+
+  if (topicIds.length === 0) {
+    return [] as string[];
+  }
+
+  const { data: links, error: linksError } = await supabase
+    .from("statement_topic_links")
+    .select("source_summary_id")
+    .eq("source_type", "telegram")
+    .in("topic_id", topicIds)
+    .limit(Math.max(limit * 10, 1000));
+
+  if (linksError) {
+    if (isMissingStatementTable(linksError, "statement_topic_links")) {
+      return [] as string[];
+    }
+
+    throw new Error(linksError.message);
+  }
+
+  return [
+    ...new Set(
+      ((links as Array<{ source_summary_id: string }> | null) ?? []).map(
+        (link) => link.source_summary_id,
+      ),
+    ),
+  ];
 }
 
 export async function getPublicPartyStatementItems(limit: number) {
@@ -87,7 +155,7 @@ export async function getPublicPartyStatementItems(limit: number) {
     .limit(limit);
 
   if (error) {
-    if (isMissingPartyStatementTable(error)) {
+    if (isMissingStatementTable(error, "party_statement_summaries")) {
       return [] satisfies PublicStatementFeedItem[];
     }
 
@@ -123,10 +191,13 @@ export async function getPublicPartyStatementItems(limit: number) {
     });
 }
 
-function isMissingPartyStatementTable(error: { code?: string; message?: string }) {
+function isMissingStatementTable(
+  error: { code?: string; message?: string },
+  tableName: string,
+) {
   return (
     error.code === "42P01" ||
-    /party_statement_summaries/i.test(error.message ?? "")
+    new RegExp(tableName, "i").test(error.message ?? "")
   );
 }
 

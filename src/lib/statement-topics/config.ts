@@ -9,7 +9,7 @@ const DEFAULT_TOPIC_RUN_LIMIT = 100;
 export function getStatementTopicWindowHours() {
   return readIntegerEnv("STATEMENT_TOPIC_WINDOW_HOURS", {
     defaultValue: DEFAULT_TOPIC_WINDOW_HOURS,
-    max: 168,
+    max: 744,
     min: 1,
   });
 }

@@ -1,7 +1,7 @@
 import "server-only";
 
 export const TELEGRAM_FETCH_USER_AGENT =
-  "LoudNClearBot/1.0 (+https://loudnclear.local)";
+  "SeongmyeongMoongBot/1.0 (+https://seongmyeongmoong.local)";
 
 export async function fetchTelegramHtml(url: string) {
   const response = await fetch(url, {

@@ -3,7 +3,7 @@ import "server-only";
 import { request as httpsRequest } from "https";
 
 const USER_AGENT =
-  "Mozilla/5.0 (compatible; LoudNClearBot/1.0; +https://loudnclear.local)";
+  "Mozilla/5.0 (compatible; SeongmyeongMoongBot/1.0; +https://seongmyeongmoong.local)";
 
 export async function fetchPartyStatementHtml({
   allowInsecureTls,

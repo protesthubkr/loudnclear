@@ -16,7 +16,7 @@ const PEOPLE_POWER_LIST_URL = "https://www.peoplepowerparty.kr/news/comment";
 
 export const PEOPLE_POWER_PARTY_SOURCE: PartyStatementSourceParser = {
   listUrl: PEOPLE_POWER_LIST_URL,
-  organizationName: "국민의힘",
+  organizationName: "국힘당",
   parseDetail: parsePeoplePowerDetail,
   parseList: parsePeoplePowerList,
   sourceKey: "people_power_party",
@@ -83,7 +83,7 @@ function parsePeoplePowerDetail(
 
   return {
     ...listItem,
-    organizationName: "국민의힘",
+    organizationName: "국힘당",
     publishedAt: parseKoreanDateTime(date) ?? listItem.publishedAt,
     textSnapshot: buildDocumentText(title, textSnapshot),
     title,

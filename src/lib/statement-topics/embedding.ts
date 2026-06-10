@@ -7,6 +7,7 @@ import {
 } from "./config";
 
 const OPENAI_EMBEDDINGS_URL = "https://api.openai.com/v1/embeddings";
+const MAX_EMBEDDING_INPUT_CHARS = 12000;
 
 type OpenAIEmbeddingsResponse = {
   data?: Array<{
@@ -93,17 +94,21 @@ export async function createStatementTopicEmbeddings(
 
 export function buildStatementTopicEmbeddingText({
   coreSentence,
+  fullText,
   organizationName,
   title,
 }: {
   coreSentence: string;
+  fullText?: string | null;
   organizationName: string;
   title?: string | null;
 }) {
-  return [organizationName, title, coreSentence]
+  const body = fullText?.trim() || coreSentence;
+
+  return [organizationName, title, body]
     .filter((value) => value?.trim())
     .join("\n")
-    .slice(0, 2000);
+    .slice(0, MAX_EMBEDDING_INPUT_CHARS);
 }
 
 export function hashStatementTopicEmbeddingText(text: string) {
@@ -149,7 +154,7 @@ export function averageEmbeddings(embeddings: number[][]) {
 }
 
 function normalizeEmbeddingInput(value: string) {
-  return value.replace(/\s+/g, " ").trim().slice(0, 4000);
+  return value.replace(/\s+/g, " ").trim().slice(0, MAX_EMBEDDING_INPUT_CHARS);
 }
 
 async function readJsonSafely(response: Response) {
