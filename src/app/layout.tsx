@@ -1,7 +1,15 @@
 import type { Metadata } from "next";
+import { Gowun_Batang } from "next/font/google";
 import "./globals.css";
 import { SITE_DESCRIPTION, SITE_NAME } from "./site";
 import { getSiteUrl } from "./site-url";
+
+const gowunBatang = Gowun_Batang({
+  display: "swap",
+  subsets: ["latin"],
+  variable: "--font-family-display",
+  weight: ["400", "700"],
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
@@ -32,7 +40,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body>{children}</body>
+      <body className={gowunBatang.variable}>{children}</body>
     </html>
   );
 }

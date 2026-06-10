@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
-import { getPublicStatementFeedItems } from "@/lib/telegram-statements/public-feed";
-import { groupStatementItemsByDate } from "./statement-date-groups";
+import Image from "next/image";
+import {
+  getPublicStatementFeedItems,
+  hasPublicStatementFeedItemsBefore,
+} from "@/lib/telegram-statements/public-feed";
+import {
+  getCurrentStatementFeedWindow,
+  STATEMENT_FEED_WINDOW_ITEM_LIMIT,
+} from "@/lib/telegram-statements/public-feed-window";
 import { StatementFeedList } from "./statement-feed-list";
 import { SITE_DESCRIPTION, SITE_NAME } from "./site";
 
@@ -13,21 +20,35 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const items = await getPublicStatementFeedItems();
-  const dateGroups = groupStatementItemsByDate(items);
+  const initialWindow = getCurrentStatementFeedWindow();
+  const [items, hasMoreBefore] = await Promise.all([
+    getPublicStatementFeedItems({
+      fromIso: initialWindow.from,
+      limit: STATEMENT_FEED_WINDOW_ITEM_LIMIT,
+      toIso: initialWindow.to,
+    }),
+    hasPublicStatementFeedItemsBefore(initialWindow.from),
+  ]);
 
   return (
     <main className="statement-shell">
       <header className="statement-topbar">
         <h1>{SITE_NAME}</h1>
+        <Image
+          alt=""
+          aria-hidden="true"
+          className="statement-topbar-bird"
+          height={327}
+          priority
+          src="/bird.png"
+          width={306}
+        />
       </header>
-      {items.length > 0 ? (
-        <StatementFeedList dateGroups={dateGroups} />
-      ) : (
-        <section className="statement-empty">
-          <h2>아직 공개할 성명문이 없습니다</h2>
-        </section>
-      )}
+      <StatementFeedList
+        initialHasMoreBefore={hasMoreBefore}
+        initialItems={items}
+        initialWindow={initialWindow}
+      />
     </main>
   );
 }

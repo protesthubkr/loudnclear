@@ -10,7 +10,17 @@ import type {
   StatementSummaryPublicRow,
 } from "./public-feed-types";
 
-export async function getPublicTelegramStatementItems(limit: number) {
+export type PublicStatementSourceQuery = {
+  fromIso?: string;
+  limit: number;
+  toIso?: string;
+};
+
+export async function getPublicTelegramStatementItems({
+  fromIso,
+  limit,
+  toIso,
+}: PublicStatementSourceQuery) {
   const supabase = getSupabaseClient();
 
   if (!supabase) {
@@ -25,7 +35,7 @@ export async function getPublicTelegramStatementItems(limit: number) {
     return [] satisfies PublicStatementFeedItem[];
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("telegram_statement_summaries")
     .select(
       [
@@ -39,7 +49,17 @@ export async function getPublicTelegramStatementItems(limit: number) {
       ].join(","),
     )
     .eq("status", "extracted")
-    .in("id", confirmedSummaryIds)
+    .in("id", confirmedSummaryIds);
+
+  if (fromIso) {
+    query = query.gte("message_created_at", fromIso);
+  }
+
+  if (toIso) {
+    query = query.lt("message_created_at", toIso);
+  }
+
+  const { data, error } = await query
     .order("message_created_at", { ascending: false, nullsFirst: false })
     .limit(limit);
 
@@ -66,6 +86,34 @@ export async function getPublicTelegramStatementItems(limit: number) {
       sourceUrl: row.source_url,
       sourceType: "telegram" as const,
     }));
+}
+
+export async function hasPublicTelegramStatementItemsBefore(beforeIso: string) {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return false;
+  }
+
+  const confirmedSummaryIds = await getConfirmedTelegramStatementSummaryIds(500);
+
+  if (confirmedSummaryIds.length === 0) {
+    return false;
+  }
+
+  const { data, error } = await supabase
+    .from("telegram_statement_summaries")
+    .select("id")
+    .eq("status", "extracted")
+    .in("id", confirmedSummaryIds)
+    .lt("message_created_at", beforeIso)
+    .limit(1);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data as Array<{ id: string }> | null) ?? []).length > 0;
 }
 
 async function getConfirmedTelegramStatementSummaryIds(limit: number) {
@@ -114,14 +162,18 @@ async function getConfirmedTelegramStatementSummaryIds(limit: number) {
   ];
 }
 
-export async function getPublicPartyStatementItems(limit: number) {
+export async function getPublicPartyStatementItems({
+  fromIso,
+  limit,
+  toIso,
+}: PublicStatementSourceQuery) {
   const supabase = getSupabaseClient();
 
   if (!supabase) {
     return [] satisfies PublicStatementFeedItem[];
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("party_statement_summaries")
     .select(
       [
@@ -138,7 +190,17 @@ export async function getPublicPartyStatementItems(limit: number) {
       ].join(","),
     )
     .eq("status", "extracted")
-    .eq("topic_gate_status", "matched")
+    .eq("topic_gate_status", "matched");
+
+  if (fromIso) {
+    query = query.gte("published_at", fromIso);
+  }
+
+  if (toIso) {
+    query = query.lt("published_at", toIso);
+  }
+
+  const { data, error } = await query
     .order("published_at", { ascending: false, nullsFirst: false })
     .limit(limit);
 
@@ -173,6 +235,28 @@ export async function getPublicPartyStatementItems(limit: number) {
         sourceType: "party" as const,
       };
     });
+}
+
+export async function hasPublicPartyStatementItemsBefore(beforeIso: string) {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return false;
+  }
+
+  const { data, error } = await supabase
+    .from("party_statement_summaries")
+    .select("id")
+    .eq("status", "extracted")
+    .eq("topic_gate_status", "matched")
+    .lt("published_at", beforeIso)
+    .limit(1);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data as Array<{ id: string }> | null) ?? []).length > 0;
 }
 
 function normalizeFeedSentence(value: string | null) {

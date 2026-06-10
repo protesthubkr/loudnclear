@@ -38,7 +38,7 @@ Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/ingest/party-statements?dryRun
 - 매시 20분: party statement ingest
 - 매시 30분: statement topic matching
 
-statement topic matching은 원문 `text_snapshot` embedding 기준으로 동작하며, 기본 임계값은 telegram/party 모두 `0.72`이다.
+statement topic matching은 원문 `text_snapshot` embedding 기준으로 동작하며, 기본 임계값은 telegram `0.55`, party `0.72`이다.
 
 ## 배포 후 확인 순서
 

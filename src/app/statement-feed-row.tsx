@@ -50,9 +50,9 @@ export function StatementFeedRow({ item }: { item: PublicStatementFeedItem }) {
             <Image
               alt=""
               className="statement-avatar-image"
-              height={28}
+              height={34}
               src={profile.logoSrc}
-              width={28}
+              width={34}
             />
           </span>
         ) : (
