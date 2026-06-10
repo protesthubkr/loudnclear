@@ -8,19 +8,41 @@ import {
 import type {
   PartyStatementDocument,
   PartyStatementListItem,
+  PartyStatementListUrlContext,
   PartyStatementSourceParser,
 } from "../types";
 import { buildDocumentText } from "./source-utils";
 
 const PEOPLE_POWER_LIST_URL = "https://www.peoplepowerparty.kr/news/comment";
+const PEOPLE_POWER_LIST_PAGE_SIZE = 10;
+const PEOPLE_POWER_BACKFILL_PAGE_COUNT = 20;
 
 export const PEOPLE_POWER_PARTY_SOURCE: PartyStatementSourceParser = {
+  buildListUrls: buildPeoplePowerListUrls,
   listUrl: PEOPLE_POWER_LIST_URL,
   organizationName: "국힘당",
   parseDetail: parsePeoplePowerDetail,
   parseList: parsePeoplePowerList,
   sourceKey: "people_power_party",
 };
+
+function buildPeoplePowerListUrls({
+  cutoffIso,
+  limit,
+}: PartyStatementListUrlContext) {
+  const pageCount = cutoffIso
+    ? PEOPLE_POWER_BACKFILL_PAGE_COUNT
+    : Math.min(
+        PEOPLE_POWER_BACKFILL_PAGE_COUNT,
+        Math.max(1, Math.ceil(limit / PEOPLE_POWER_LIST_PAGE_SIZE)),
+      );
+
+  return Array.from(
+    { length: pageCount },
+    (_, index) =>
+      `${PEOPLE_POWER_LIST_URL}?page=${index + 1}&gubun_list=all`,
+  );
+}
 
 function parsePeoplePowerList(html: string) {
   const rows = html.match(/<tr>[\s\S]*?<\/tr>/g) ?? [];

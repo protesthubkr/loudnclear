@@ -7,10 +7,16 @@ export type PartyStatementSourceKey =
 
 export type PartyStatementSourceDefinition = {
   allowInsecureTls?: boolean;
+  buildListUrls?: (context: PartyStatementListUrlContext) => string[];
   listUrl: string;
   listUrls?: string[];
   organizationName: string;
   sourceKey: PartyStatementSourceKey;
+};
+
+export type PartyStatementListUrlContext = {
+  cutoffIso: string | null;
+  limit: number;
 };
 
 export type PartyStatementListItem = {

@@ -45,7 +45,6 @@ export async function runStatementTopicMatching(
   });
   const result: StatementTopicRunResult = {
     confirmedTopics: 0,
-    crossSourceMatches: 0,
     dryRun,
     embeddingsCreated: 0,
     matchedPartyStatements: 0,
@@ -91,7 +90,6 @@ export async function runStatementTopicMatching(
     supabase,
   });
 
-  result.crossSourceMatches += partyMatching.crossSourceMatches;
   result.matchedPartyStatements += partyMatching.matchedPartyStatements;
   result.partyUnmatched += partyMatching.partyUnmatched;
 

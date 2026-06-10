@@ -1,8 +1,6 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isStatementSentencePublishable } from "@/lib/statement-quality/extraction-quality";
-import { isMissingTopicGateColumn } from "./repository-utils";
 import type {
   PartyTopicSummaryRow,
   TelegramTopicSummaryRow,
@@ -53,16 +51,7 @@ export async function getRecentTelegramTopicSummaries({
     text_snapshot:
       textSnapshots.get(buildTelegramMessageKey(row.channel_username, row.message_id)) ??
       "",
-  })).filter(
-    (row) =>
-      row.message_created_at &&
-      isStatementSentencePublishable({
-        confidence: row.extraction_confidence,
-        coreSentence: row.core_sentence,
-        documentType: row.document_type,
-        sourceType: "telegram",
-      }),
-  );
+  })).filter((row) => row.message_created_at && row.text_snapshot.trim());
 }
 
 export async function getRecentPartyTopicSummaries({
@@ -98,10 +87,6 @@ export async function getRecentPartyTopicSummaries({
     .limit(limit);
 
   if (error) {
-    if (isMissingTopicGateColumn(error)) {
-      return [] satisfies PartyTopicSummaryRow[];
-    }
-
     throw new Error(error.message);
   }
 
@@ -114,16 +99,7 @@ export async function getRecentPartyTopicSummaries({
   return rows.map((row) => ({
     ...row,
     text_snapshot: textSnapshots.get(row.document_id) ?? "",
-  })).filter(
-    (row) =>
-      row.published_at &&
-      isStatementSentencePublishable({
-        confidence: row.extraction_confidence,
-        coreSentence: row.core_sentence,
-        documentType: row.document_type,
-        sourceType: "party",
-      }),
-  );
+  })).filter((row) => row.published_at && row.text_snapshot.trim());
 }
 
 async function getTelegramTextSnapshots({

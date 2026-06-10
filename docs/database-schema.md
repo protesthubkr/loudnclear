@@ -45,7 +45,7 @@ Telegram 수집:
 현재 앱은 `telegram_statement_summaries`, `party_statement_summaries`를 직접 읽는다. 따라서 v1에서는 두 summary 테이블에만 anon select를 허용하고 RLS로 row를 제한한다.
 
 - Telegram: `status = 'extracted' and core_sentence is not null`
-- Party: `status = 'extracted' and core_sentence is not null and topic_gate_status in ('matched', 'manual_matched')`
+- Party: `status = 'extracted' and core_sentence is not null and topic_gate_status = 'matched'`
 
 장기적으로는 public feed query를 `public_statement_feed_items` view로 옮기고, summary table 직접 grant를 제거하는 것이 더 좋다.
 

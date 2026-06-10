@@ -18,6 +18,8 @@ import type {
 } from "./run-types";
 import type {
   PartyStatementDocument,
+  PartyStatementListItem,
+  PartyStatementListUrlContext,
   PartyStatementSourceParser,
 } from "./types";
 
@@ -52,7 +54,7 @@ export async function runPartyStatementSource({
 
     const parsedListItems = (
       await Promise.all(
-        getSourceListUrls(source).map(async (listUrl) => {
+        getSourceListUrls(source, { cutoffIso, limit }).map(async (listUrl) => {
           const listHtml = await fetchPartyStatementHtml({
             allowInsecureTls: source.allowInsecureTls,
             url: listUrl,
@@ -63,6 +65,7 @@ export async function runPartyStatementSource({
       )
     )
       .flat()
+      .filter(dedupePartyListItem())
       .sort(comparePartyListItemsByDateDesc);
     const listItems = parsedListItems
       .filter((listItem) => shouldIncludePartyListItem(listItem, cutoffIso))
@@ -154,8 +157,29 @@ export async function runPartyStatementSource({
   return result;
 }
 
-function getSourceListUrls(source: PartyStatementSourceParser) {
-  return source.listUrls?.length ? source.listUrls : [source.listUrl];
+function getSourceListUrls(
+  source: PartyStatementSourceParser,
+  context: PartyStatementListUrlContext,
+) {
+  const listUrls = source.buildListUrls?.(context) ??
+    (source.listUrls?.length ? source.listUrls : [source.listUrl]);
+
+  return Array.from(new Set(listUrls));
+}
+
+function dedupePartyListItem() {
+  const seenKeys = new Set<string>();
+
+  return (listItem: PartyStatementListItem) => {
+    const key = `${listItem.sourceKey}:${listItem.externalId}`;
+
+    if (seenKeys.has(key)) {
+      return false;
+    }
+
+    seenKeys.add(key);
+    return true;
+  };
 }
 
 function comparePartyListItemsByDateDesc(

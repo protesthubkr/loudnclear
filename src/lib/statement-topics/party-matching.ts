@@ -13,7 +13,6 @@ import type { EmbeddedPartySummary } from "./types";
 import type { SavedConfirmedTopic } from "./topic-persistence";
 
 export type PartyTopicMatchingResult = {
-  crossSourceMatches: number;
   matchedPartyStatements: number;
   partyUnmatched: number;
 };
@@ -28,16 +27,11 @@ export async function matchPartySummariesToTopics({
   supabase: ReturnType<typeof getRequiredStatementTopicSupabaseClient>;
 }): Promise<PartyTopicMatchingResult> {
   const result: PartyTopicMatchingResult = {
-    crossSourceMatches: 0,
     matchedPartyStatements: 0,
     partyUnmatched: 0,
   };
 
   for (const row of embeddedPartyRows) {
-    if (row.topic_gate_status === "manual_hidden") {
-      continue;
-    }
-
     const best = findBestTopicMatch(row.embedding, activeTopics);
 
     if (

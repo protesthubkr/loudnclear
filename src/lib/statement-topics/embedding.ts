@@ -95,7 +95,6 @@ export async function createStatementTopicEmbeddings(
 export function buildStatementTopicEmbeddingText({
   coreSentence,
   fullText,
-  organizationName,
   title,
 }: {
   coreSentence: string;
@@ -105,7 +104,7 @@ export function buildStatementTopicEmbeddingText({
 }) {
   const body = fullText?.trim() || coreSentence;
 
-  return [organizationName, title, body]
+  return [title, body]
     .filter((value) => value?.trim())
     .join("\n")
     .slice(0, MAX_EMBEDDING_INPUT_CHARS);

@@ -141,7 +141,7 @@ function countSharedTopicTokens(
 }
 
 function getTopicTokens(source: TopicLexicalSource) {
-  const text = [source.title, source.core_sentence]
+  const text = [source.title, source.core_sentence, source.text_snapshot]
     .filter((value) => value?.trim())
     .join(" ");
   const tokens = new Set<string>();

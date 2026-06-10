@@ -8,6 +8,7 @@ import {
 import type {
   PartyStatementDocument,
   PartyStatementListItem,
+  PartyStatementListUrlContext,
   PartyStatementSourceParser,
 } from "../types";
 import { buildDocumentText } from "./source-utils";
@@ -16,16 +17,69 @@ const THEMINJOO_STATEMENT_LIST_URL =
   "https://theminjoo.kr/main/sub/news/list.php?brd=188";
 const THEMINJOO_BRIEFING_LIST_URL =
   "https://theminjoo.kr/main/sub/news/list.php?brd=11";
+const THEMINJOO_LIST_PAGE_SIZE = 20;
+const THEMINJOO_STATEMENT_BACKFILL_PAGE_COUNT = 2;
+const THEMINJOO_BRIEFING_BACKFILL_PAGE_COUNT = 5;
 
 export const THEMINJOO_SOURCE: PartyStatementSourceParser = {
   allowInsecureTls: true,
+  buildListUrls: buildTheminjooListUrls,
   listUrl: THEMINJOO_STATEMENT_LIST_URL,
-  listUrls: [THEMINJOO_STATEMENT_LIST_URL, THEMINJOO_BRIEFING_LIST_URL],
   organizationName: "민주당",
   parseDetail: parseTheminjooDetail,
   parseList: parseTheminjooList,
   sourceKey: "theminjoo",
 };
+
+function buildTheminjooListUrls(context: PartyStatementListUrlContext) {
+  return [
+    ...buildTheminjooPaginatedListUrls(
+      THEMINJOO_STATEMENT_LIST_URL,
+      getTheminjooPageCount(
+        context,
+        THEMINJOO_STATEMENT_BACKFILL_PAGE_COUNT,
+      ),
+    ),
+    ...buildTheminjooPaginatedListUrls(
+      THEMINJOO_BRIEFING_LIST_URL,
+      getTheminjooPageCount(
+        context,
+        THEMINJOO_BRIEFING_BACKFILL_PAGE_COUNT,
+      ),
+    ),
+  ];
+}
+
+function getTheminjooPageCount(
+  { cutoffIso, limit }: PartyStatementListUrlContext,
+  backfillPageCount: number,
+) {
+  if (cutoffIso) {
+    return backfillPageCount;
+  }
+
+  return Math.min(
+    backfillPageCount,
+    Math.max(1, Math.ceil(limit / THEMINJOO_LIST_PAGE_SIZE)),
+  );
+}
+
+function buildTheminjooPaginatedListUrls(
+  listUrl: string,
+  pageCount: number,
+) {
+  const brd = new URL(listUrl).searchParams.get("brd");
+
+  return Array.from({ length: pageCount }, (_, index) => {
+    if (index === 0 || !brd) {
+      return listUrl;
+    }
+
+    return `https://theminjoo.kr/main/sub/news/list.php?sno=${
+      index * THEMINJOO_LIST_PAGE_SIZE
+    }&par=&&brd=${brd}`;
+  });
+}
 
 function parseTheminjooList(html: string, listUrl: string) {
   return html

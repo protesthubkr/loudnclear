@@ -9,7 +9,7 @@
 - Next.js 앱은 `loudnclear/` 아래 독립 프로젝트로 분리되어 있다.
 - 공개 피드는 `/`에서 제공된다.
 - 수집/처리 API는 `/api/ingest/*` 아래에 유지되어 있다.
-- 정당 성명 노출은 `status = extracted`이고 `topic_gate_status = matched` 또는 `manual_matched`인 문서만 허용한다.
+- 정당 성명 노출은 `status = extracted`이고 `topic_gate_status = matched`인 문서만 허용한다.
 - 정당 성명 자동 매칭은 confirmed telegram topic 기반으로만 수행한다.
 - 현재 DB는 설정에 따라 `protesthub`와 같은 Supabase를 공유할 수 있다.
 

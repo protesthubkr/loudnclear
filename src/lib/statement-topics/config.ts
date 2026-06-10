@@ -1,7 +1,6 @@
 const DEFAULT_TOPIC_WINDOW_HOURS = 48;
-const DEFAULT_TELEGRAM_TOPIC_THRESHOLD = 0.4;
-const DEFAULT_PARTY_TOPIC_THRESHOLD = 0.35;
-const DEFAULT_CROSS_SOURCE_TOPIC_THRESHOLD = 0.35;
+const DEFAULT_TELEGRAM_TOPIC_THRESHOLD = 0.72;
+const DEFAULT_PARTY_TOPIC_THRESHOLD = 0.72;
 const DEFAULT_TOPIC_EMBEDDING_MODEL = "text-embedding-3-small";
 const DEFAULT_TOPIC_EMBEDDING_DIMENSIONS = 512;
 const DEFAULT_TOPIC_RUN_LIMIT = 100;
@@ -25,14 +24,6 @@ export function getStatementTopicTelegramThreshold() {
 export function getStatementTopicPartyThreshold() {
   return readNumberEnv("STATEMENT_TOPIC_PARTY_THRESHOLD", {
     defaultValue: DEFAULT_PARTY_TOPIC_THRESHOLD,
-    max: 0.99,
-    min: 0.3,
-  });
-}
-
-export function getStatementTopicCrossSourceThreshold() {
-  return readNumberEnv("STATEMENT_TOPIC_CROSS_SOURCE_THRESHOLD", {
-    defaultValue: DEFAULT_CROSS_SOURCE_TOPIC_THRESHOLD,
     max: 0.99,
     min: 0.3,
   });

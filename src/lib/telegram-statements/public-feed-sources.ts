@@ -44,10 +44,6 @@ export async function getPublicTelegramStatementItems(limit: number) {
     .limit(limit);
 
   if (error) {
-    if (isMissingStatementTable(error, "telegram_statement_summaries")) {
-      return [] satisfies PublicStatementFeedItem[];
-    }
-
     throw new Error(error.message);
   }
 
@@ -87,10 +83,6 @@ async function getConfirmedTelegramStatementSummaryIds(limit: number) {
     .limit(Math.max(limit, 100));
 
   if (topicsError) {
-    if (isMissingStatementTable(topicsError, "statement_topics")) {
-      return [] as string[];
-    }
-
     throw new Error(topicsError.message);
   }
 
@@ -110,10 +102,6 @@ async function getConfirmedTelegramStatementSummaryIds(limit: number) {
     .limit(Math.max(limit * 10, 1000));
 
   if (linksError) {
-    if (isMissingStatementTable(linksError, "statement_topic_links")) {
-      return [] as string[];
-    }
-
     throw new Error(linksError.message);
   }
 
@@ -150,15 +138,11 @@ export async function getPublicPartyStatementItems(limit: number) {
       ].join(","),
     )
     .eq("status", "extracted")
-    .in("topic_gate_status", ["matched", "manual_matched"])
+    .eq("topic_gate_status", "matched")
     .order("published_at", { ascending: false, nullsFirst: false })
     .limit(limit);
 
   if (error) {
-    if (isMissingStatementTable(error, "party_statement_summaries")) {
-      return [] satisfies PublicStatementFeedItem[];
-    }
-
     throw new Error(error.message);
   }
 
@@ -189,16 +173,6 @@ export async function getPublicPartyStatementItems(limit: number) {
         sourceType: "party" as const,
       };
     });
-}
-
-function isMissingStatementTable(
-  error: { code?: string; message?: string },
-  tableName: string,
-) {
-  return (
-    error.code === "42P01" ||
-    new RegExp(tableName, "i").test(error.message ?? "")
-  );
 }
 
 function normalizeFeedSentence(value: string | null) {

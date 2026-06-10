@@ -6,7 +6,6 @@ export type StatementTopicRunOptions = {
 
 export type StatementTopicRunResult = {
   confirmedTopics: number;
-  crossSourceMatches: number;
   dryRun: boolean;
   embeddingsCreated: number;
   matchedPartyStatements: number;

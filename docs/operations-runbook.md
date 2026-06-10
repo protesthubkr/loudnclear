@@ -38,6 +38,8 @@ Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/ingest/party-statements?dryRun
 - 매시 20분: party statement ingest
 - 매시 30분: statement topic matching
 
+statement topic matching은 원문 `text_snapshot` embedding 기준으로 동작하며, 기본 임계값은 telegram/party 모두 `0.72`이다.
+
 ## 배포 후 확인 순서
 
 1. Vercel production env에 필수 값을 모두 넣는다.
@@ -85,6 +87,12 @@ Invoke-RestMethod "$baseUrl/api/ingest/telegram-statement-extractions?windowHour
 
 Invoke-RestMethod "$baseUrl/api/ingest/statement-topics?dryRun=true&windowHours=$windowHours&limit=500" -Headers $headers
 Invoke-RestMethod "$baseUrl/api/ingest/statement-topics?windowHours=$windowHours&limit=500" -Headers $headers
+
+# LLM sentence selector/verifier comparison. This does not replace public feed sentences.
+Invoke-RestMethod "$baseUrl/api/ingest/statement-sentence-selections?dryRun=true&windowHours=$windowHours&limit=10" -Headers $headers
+Invoke-RestMethod "$baseUrl/api/ingest/statement-sentence-selections?windowHours=$windowHours&limit=10" -Headers $headers
 ```
 
 `telegram-statement-extractions`는 `pendingSeen`이 남아 있으면 같은 명령을 반복한다. topic matching은 telegram extraction이 충분히 끝난 뒤 실행해야 정당 성명 공개 게이트가 안정적으로 열린다.
+
+sentence selector/verifier v4는 `statement_sentence_llm_selections.final_status`에 `review_needed`를 저장할 수 있어야 한다. production에서 non-dryRun을 실행하기 전에 `supabase/migrations/20260610143000_statement_sentence_llm_review_needed.sql`을 loudnclear Supabase에 적용한다.

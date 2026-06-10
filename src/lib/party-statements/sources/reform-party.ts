@@ -8,13 +8,17 @@ import {
 import type {
   PartyStatementDocument,
   PartyStatementListItem,
+  PartyStatementListUrlContext,
   PartyStatementSourceParser,
 } from "../types";
 import { buildDocumentText } from "./source-utils";
 
 const REFORM_PARTY_LIST_URL = "https://www.reformparty.kr/briefing";
+const REFORM_PARTY_LIST_PAGE_SIZE = 10;
+const REFORM_PARTY_BACKFILL_PAGE_COUNT = 3;
 
 export const REFORM_PARTY_SOURCE: PartyStatementSourceParser = {
+  buildListUrls: buildReformPartyListUrls,
   listUrl: REFORM_PARTY_LIST_URL,
   organizationName: "개혁신당",
   parseDetail: parseReformPartyDetail,
@@ -22,7 +26,24 @@ export const REFORM_PARTY_SOURCE: PartyStatementSourceParser = {
   sourceKey: "reform_party",
 };
 
-function parseReformPartyList(html: string) {
+function buildReformPartyListUrls({
+  cutoffIso,
+  limit,
+}: PartyStatementListUrlContext) {
+  const pageCount = cutoffIso
+    ? REFORM_PARTY_BACKFILL_PAGE_COUNT
+    : Math.min(
+        REFORM_PARTY_BACKFILL_PAGE_COUNT,
+        Math.max(1, Math.ceil(limit / REFORM_PARTY_LIST_PAGE_SIZE)),
+      );
+
+  return Array.from(
+    { length: pageCount },
+    (_, index) => `${REFORM_PARTY_LIST_URL}?page=${index + 1}`,
+  );
+}
+
+function parseReformPartyList(html: string, listUrl: string) {
   const rows = html.match(/<tr[\s\S]*?<\/tr>/g) ?? [];
 
   return rows.flatMap((row) => {
@@ -58,7 +79,7 @@ function parseReformPartyList(html: string) {
         publishedAt: parseKoreanDateTime(date),
         rawCategory,
         sourceKey: "reform_party",
-        sourceUrl: absoluteUrl(href, REFORM_PARTY_LIST_URL),
+        sourceUrl: absoluteUrl(href, listUrl),
         title,
       } satisfies PartyStatementListItem,
     ];

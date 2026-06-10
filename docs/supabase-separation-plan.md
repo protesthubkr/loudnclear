@@ -48,9 +48,8 @@ Canonical schema는 [../supabase/schema.sql](../supabase/schema.sql)에 둔다. 
 
 - anon key로 공개 feed에 필요한 extracted row만 읽힌다.
 - service role로 ingest API가 insert/update/delete를 수행한다.
-- `party_statement_summaries.topic_gate_status`가 `matched` 또는 `manual_matched`인 row만 공개된다.
+- `party_statement_summaries.topic_gate_status`가 `matched`인 row만 공개된다.
 - confirmed topic 기반 자동 매칭이 유지된다.
-- `manual_hidden` row는 재매칭 후에도 공개되지 않는다.
 
 ## 전환 절차
 

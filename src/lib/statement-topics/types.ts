@@ -25,5 +25,6 @@ export type ConfirmedTopic = TopicCluster & {
 
 export type TopicLexicalSource = {
   core_sentence: string;
+  text_snapshot?: string | null;
   title?: string | null;
 };

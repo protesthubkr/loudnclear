@@ -24,8 +24,7 @@ export async function markPartyStatementTopicMatched({
       topic_matched_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
-    .eq("id", summaryId)
-    .not("topic_gate_status", "eq", "manual_hidden");
+    .eq("id", summaryId);
 
   if (error) {
     throw new Error(error.message);
@@ -60,9 +59,7 @@ export async function markPartyStatementTopicUnmatched({
       topic_matched_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
-    .eq("id", summaryId)
-    .not("topic_gate_status", "eq", "manual_matched")
-    .not("topic_gate_status", "eq", "manual_hidden");
+    .eq("id", summaryId);
 
   if (error) {
     throw new Error(error.message);
