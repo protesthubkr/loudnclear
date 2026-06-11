@@ -39,8 +39,8 @@ export default async function OpsPage() {
   }
 
   const {
+    dataSources,
     partyCounts,
-    partySources,
     recentPartyTopics,
     recentProblems,
     recentScanRuns,
@@ -80,13 +80,22 @@ export default async function OpsPage() {
           />
         </OpsPanel>
 
-        <OpsPanel title="정당 source">
+        <OpsPanel title="데이터 소스">
           <OpsTable
-            emptyText="source가 없습니다."
-            headers={["source", "상태", "마지막 수집", "오류"]}
-            rows={partySources.map((source) => [
-              `${source.organization_name} (${source.source_key})`,
-              source.enabled ? "enabled" : "disabled",
+            emptyText="데이터 소스가 없습니다."
+            headers={["유형", "source", "상태", "마지막 수집", "오류"]}
+            rows={dataSources.map((source) => [
+              source.source_type === "telegram" ? "telegram" : "web",
+              <a
+                className="ops-table-link"
+                href={source.source_url}
+                key={source.source_key}
+                rel="noreferrer"
+                target="_blank"
+              >
+                {source.organization_name} ({source.source_key})
+              </a>,
+              source.status,
               formatDateTime(source.last_scanned_at),
               source.last_error ?? "-",
             ])}

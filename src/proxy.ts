@@ -7,8 +7,13 @@ export const config = {
 export function proxy(request: NextRequest) {
   const expectedUser = process.env.OPS_BASIC_USER;
   const expectedPassword = process.env.OPS_BASIC_PASSWORD;
+  const expectedSecret = process.env.OPS_SECRET_KEY;
 
-  if (!expectedUser || !expectedPassword) {
+  if (isUrlSecretAuthorized(request, expectedSecret)) {
+    return NextResponse.next();
+  }
+
+  if (!expectedSecret && (!expectedUser || !expectedPassword)) {
     if (process.env.NODE_ENV !== "production") {
       return NextResponse.next();
     }
@@ -16,18 +21,35 @@ export function proxy(request: NextRequest) {
     return unauthorized("Ops credentials are not configured.");
   }
 
-  const credentials = decodeBasicCredentials(
-    request.headers.get("authorization"),
-  );
+  if (expectedUser && expectedPassword) {
+    const credentials = decodeBasicCredentials(
+      request.headers.get("authorization"),
+    );
 
-  if (
-    credentials?.username === expectedUser &&
-    credentials.password === expectedPassword
-  ) {
-    return NextResponse.next();
+    if (
+      credentials?.username === expectedUser &&
+      credentials.password === expectedPassword
+    ) {
+      return NextResponse.next();
+    }
   }
 
   return unauthorized("Unauthorized.");
+}
+
+function isUrlSecretAuthorized(
+  request: NextRequest,
+  expectedSecret: string | undefined,
+) {
+  const actualSecret =
+    request.nextUrl.searchParams.get("key") ??
+    request.nextUrl.searchParams.get("secret");
+
+  if (!expectedSecret || !actualSecret) {
+    return false;
+  }
+
+  return areSecretsEqual(actualSecret, expectedSecret);
 }
 
 function decodeBasicCredentials(authorization: string | null) {
@@ -50,6 +72,18 @@ function decodeBasicCredentials(authorization: string | null) {
   } catch {
     return null;
   }
+}
+
+function areSecretsEqual(actual: string, expected: string) {
+  const maxLength = Math.max(actual.length, expected.length);
+  let mismatch = actual.length ^ expected.length;
+
+  for (let index = 0; index < maxLength; index += 1) {
+    mismatch |=
+      (actual.charCodeAt(index) || 0) ^ (expected.charCodeAt(index) || 0);
+  }
+
+  return mismatch === 0;
 }
 
 function unauthorized(message: string) {
