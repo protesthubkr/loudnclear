@@ -1,4 +1,4 @@
-import { isStatementSentencePublishable } from "@/lib/statement-quality/extraction-quality";
+import { getSelectedStatementDisplayDecisionMap } from "@/lib/statement-display-decisions/repository";
 import { getStatementTopicPartyThreshold } from "@/lib/statement-topics/config";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import {
@@ -20,8 +20,6 @@ const PARTY_PUBLIC_SUMMARY_COLUMNS = [
   "published_at",
   "created_at",
   "document_type",
-  "core_sentence",
-  "extraction_confidence",
   "topic_gate_status",
 ].join(",");
 
@@ -59,9 +57,22 @@ export async function getPublicPartyStatementItems({
     throw new Error(error.message);
   }
 
-  return ((data as unknown as PartyStatementSummaryPublicRow[] | null) ?? [])
-    .filter(isPublicPartyStatementRowPublishable)
-    .map(mapPublicPartyStatementItem);
+  const rows = (data as unknown as PartyStatementSummaryPublicRow[] | null) ?? [];
+  const displayDecisions = await getSelectedStatementDisplayDecisionMap({
+    sourceType: "party",
+    summaryIds: rows.map((row) => row.id),
+    supabase,
+  });
+
+  return rows.flatMap((row) => {
+    const displayDecision = displayDecisions.get(row.id);
+
+    if (!displayDecision) {
+      return [];
+    }
+
+    return [mapPublicPartyStatementItem(row, displayDecision.displaySentence)];
+  });
 }
 
 export async function hasPublicPartyStatementItemsBefore(beforeIso: string) {
@@ -77,7 +88,6 @@ export async function hasPublicPartyStatementItemsBefore(beforeIso: string) {
     .eq("status", "extracted")
     .eq("topic_gate_status", "matched")
     .gte("topic_match_confidence", getStatementTopicPartyThreshold())
-    .not("core_sentence", "is", null)
     .lt("published_at", beforeIso)
     .order("published_at", { ascending: false, nullsFirst: false })
     .limit(HAS_MORE_BEFORE_CANDIDATE_LIMIT);
@@ -86,13 +96,19 @@ export async function hasPublicPartyStatementItemsBefore(beforeIso: string) {
     throw new Error(error.message);
   }
 
-  return ((data as unknown as PartyStatementSummaryPublicRow[] | null) ?? []).some(
-    isPublicPartyStatementRowPublishable,
-  );
+  const rows = (data as unknown as PartyStatementSummaryPublicRow[] | null) ?? [];
+  const displayDecisions = await getSelectedStatementDisplayDecisionMap({
+    sourceType: "party",
+    summaryIds: rows.map((row) => row.id),
+    supabase,
+  });
+
+  return rows.some((row) => displayDecisions.has(row.id));
 }
 
 function mapPublicPartyStatementItem(
   row: PartyStatementSummaryPublicRow,
+  displaySentence: string,
 ): PublicStatementFeedItem {
   const displayTime = resolvePartyStatementDisplayTime({
     collectedAt: row.created_at,
@@ -101,7 +117,7 @@ function mapPublicPartyStatementItem(
   });
 
   return {
-    coreSentence: normalizeFeedSentence(row.core_sentence),
+    coreSentence: normalizeFeedSentence(displaySentence),
     documentType: row.document_type,
     id: `party:${row.id}`,
     isTimeUnknown: displayTime.isTimeUnknown,
@@ -110,14 +126,4 @@ function mapPublicPartyStatementItem(
     sourceUrl: row.source_url,
     sourceType: "party",
   };
-}
-
-function isPublicPartyStatementRowPublishable(
-  row: PartyStatementSummaryPublicRow,
-) {
-  return isStatementSentencePublishable({
-    confidence: row.extraction_confidence,
-    coreSentence: row.core_sentence,
-    documentType: row.document_type,
-  });
 }

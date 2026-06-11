@@ -1,4 +1,4 @@
-import { isStatementSentencePublishable } from "@/lib/statement-quality/extraction-quality";
+import { getSelectedStatementDisplayDecisionMap } from "@/lib/statement-display-decisions/repository";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import {
   HAS_MORE_BEFORE_CANDIDATE_LIMIT,
@@ -21,8 +21,6 @@ const WEB_PUBLIC_SUMMARY_COLUMNS = [
   "source_url",
   "published_at",
   "document_type",
-  "core_sentence",
-  "extraction_confidence",
 ].join(",");
 
 export async function getPublicWebStatementItems({
@@ -59,10 +57,22 @@ export async function getPublicWebStatementItems({
     throw new Error(error.message);
   }
 
-  return ((data as unknown as WebStatementSummaryPublicRow[] | null) ?? [])
-    .filter(isPublicWebStatementRowPublishable)
-    .map((row) => ({
-      coreSentence: normalizeFeedSentence(row.core_sentence),
+  const rows = (data as unknown as WebStatementSummaryPublicRow[] | null) ?? [];
+  const displayDecisions = await getSelectedStatementDisplayDecisionMap({
+    sourceType: "web",
+    summaryIds: rows.map((row) => row.id),
+    supabase,
+  });
+
+  return rows.flatMap((row) => {
+    const displayDecision = displayDecisions.get(row.id);
+
+    if (!displayDecision) {
+      return [];
+    }
+
+    return [{
+      coreSentence: normalizeFeedSentence(displayDecision.displaySentence),
       documentType: row.document_type,
       id: `web:${row.id}`,
       isTimeUnknown: false,
@@ -70,7 +80,8 @@ export async function getPublicWebStatementItems({
       organizationName: row.organization_name,
       sourceUrl: row.source_url,
       sourceType: "web" as const,
-    }));
+    }];
+  });
 }
 
 export async function hasPublicWebStatementItemsBefore(
@@ -88,7 +99,6 @@ export async function hasPublicWebStatementItemsBefore(
     .select(WEB_PUBLIC_SUMMARY_COLUMNS)
     .eq("status", "extracted")
     .in("id", confirmedWebSummaryIds)
-    .not("core_sentence", "is", null)
     .lt("published_at", beforeIso)
     .order("published_at", { ascending: false, nullsFirst: false })
     .limit(HAS_MORE_BEFORE_CANDIDATE_LIMIT);
@@ -97,9 +107,14 @@ export async function hasPublicWebStatementItemsBefore(
     throw new Error(error.message);
   }
 
-  return ((data as unknown as WebStatementSummaryPublicRow[] | null) ?? []).some(
-    isPublicWebStatementRowPublishable,
-  );
+  const rows = (data as unknown as WebStatementSummaryPublicRow[] | null) ?? [];
+  const displayDecisions = await getSelectedStatementDisplayDecisionMap({
+    sourceType: "web",
+    summaryIds: rows.map((row) => row.id),
+    supabase,
+  });
+
+  return rows.some((row) => displayDecisions.has(row.id));
 }
 
 export async function getConfirmedWebStatementSummaryIds(limit: number) {
@@ -174,12 +189,4 @@ async function getEnabledWebSourceKeys() {
   return ((data as Array<{ source_key: string }> | null) ?? []).map(
     (row) => row.source_key,
   );
-}
-
-function isPublicWebStatementRowPublishable(row: WebStatementSummaryPublicRow) {
-  return isStatementSentencePublishable({
-    confidence: row.extraction_confidence,
-    coreSentence: row.core_sentence,
-    documentType: row.document_type,
-  });
 }

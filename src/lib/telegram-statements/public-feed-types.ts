@@ -10,9 +10,7 @@ export type PublicStatementFeedItem = {
 };
 
 export type StatementSummaryPublicRow = {
-  core_sentence: string | null;
   document_type: string;
-  extraction_confidence: number | null;
   id: string;
   message_created_at: string | null;
   organization_name: string;
@@ -20,10 +18,8 @@ export type StatementSummaryPublicRow = {
 };
 
 export type PartyStatementSummaryPublicRow = {
-  core_sentence: string | null;
   created_at: string | null;
   document_type: string;
-  extraction_confidence: number | null;
   id: string;
   organization_name: string;
   published_at: string | null;
@@ -33,9 +29,7 @@ export type PartyStatementSummaryPublicRow = {
 };
 
 export type XStatementSummaryPublicRow = {
-  core_sentence: string | null;
   document_type: string;
-  extraction_confidence: number | null;
   id: string;
   organization_name: string;
   posted_at: string | null;
@@ -43,9 +37,7 @@ export type XStatementSummaryPublicRow = {
 };
 
 export type WebStatementSummaryPublicRow = {
-  core_sentence: string | null;
   document_type: string;
-  extraction_confidence: number | null;
   id: string;
   organization_name: string;
   published_at: string | null;

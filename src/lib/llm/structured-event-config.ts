@@ -8,20 +8,32 @@ const REASONING_EFFORTS = new Set([
   "xhigh",
 ]);
 
-export function getReasoningRequestOptions(model: string) {
+type ReasoningRequestOptions = {
+  defaultEffort?: string;
+  effortEnvKey?: string;
+};
+
+export function getReasoningRequestOptions(
+  model: string,
+  options: ReasoningRequestOptions = {},
+) {
   if (!isReasoningModel(model)) {
     return {};
   }
 
-  const configuredEffort = process.env.OPENAI_STATEMENT_REASONING_EFFORT
+  const defaultEffort =
+    options.defaultEffort ?? DEFAULT_EXTRACTION_REASONING_EFFORT;
+  const effortEnvKey =
+    options.effortEnvKey ?? "OPENAI_STATEMENT_REASONING_EFFORT";
+  const configuredEffort = process.env[effortEnvKey]
     ?.trim()
     .toLowerCase();
-  const effort = configuredEffort || DEFAULT_EXTRACTION_REASONING_EFFORT;
+  const effort = configuredEffort || defaultEffort;
 
   if (!REASONING_EFFORTS.has(effort)) {
     return {
       reasoning: {
-        effort: DEFAULT_EXTRACTION_REASONING_EFFORT,
+        effort: defaultEffort,
       },
     };
   }
@@ -29,7 +41,7 @@ export function getReasoningRequestOptions(model: string) {
   if (effort === "none" && !model.startsWith("gpt-5.1")) {
     return {
       reasoning: {
-        effort: DEFAULT_EXTRACTION_REASONING_EFFORT,
+        effort: defaultEffort,
       },
     };
   }

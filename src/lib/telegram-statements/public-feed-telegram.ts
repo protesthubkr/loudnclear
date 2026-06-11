@@ -1,4 +1,4 @@
-import { isStatementSentencePublishable } from "@/lib/statement-quality/extraction-quality";
+import { getSelectedStatementDisplayDecisionMap } from "@/lib/statement-display-decisions/repository";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import {
   HAS_MORE_BEFORE_CANDIDATE_LIMIT,
@@ -20,8 +20,6 @@ const TELEGRAM_PUBLIC_SUMMARY_COLUMNS = [
   "source_url",
   "message_created_at",
   "document_type",
-  "core_sentence",
-  "extraction_confidence",
 ].join(",");
 
 export async function getPublicTelegramStatementItems({
@@ -58,10 +56,22 @@ export async function getPublicTelegramStatementItems({
     throw new Error(error.message);
   }
 
-  return ((data as unknown as StatementSummaryPublicRow[] | null) ?? [])
-    .filter(isPublicTelegramStatementRowPublishable)
-    .map((row) => ({
-      coreSentence: normalizeFeedSentence(row.core_sentence),
+  const rows = (data as unknown as StatementSummaryPublicRow[] | null) ?? [];
+  const displayDecisions = await getSelectedStatementDisplayDecisionMap({
+    sourceType: "telegram",
+    summaryIds: rows.map((row) => row.id),
+    supabase,
+  });
+
+  return rows.flatMap((row) => {
+    const displayDecision = displayDecisions.get(row.id);
+
+    if (!displayDecision) {
+      return [];
+    }
+
+    return [{
+      coreSentence: normalizeFeedSentence(displayDecision.displaySentence),
       documentType: row.document_type,
       id: `telegram:${row.id}`,
       isTimeUnknown: false,
@@ -69,7 +79,8 @@ export async function getPublicTelegramStatementItems({
       organizationName: row.organization_name,
       sourceUrl: row.source_url,
       sourceType: "telegram" as const,
-    }));
+    }];
+  });
 }
 
 export async function hasPublicTelegramStatementItemsBefore(
@@ -87,7 +98,6 @@ export async function hasPublicTelegramStatementItemsBefore(
     .select(TELEGRAM_PUBLIC_SUMMARY_COLUMNS)
     .eq("status", "extracted")
     .in("id", confirmedTelegramSummaryIds)
-    .not("core_sentence", "is", null)
     .lt("message_created_at", beforeIso)
     .order("message_created_at", { ascending: false, nullsFirst: false })
     .limit(HAS_MORE_BEFORE_CANDIDATE_LIMIT);
@@ -96,9 +106,14 @@ export async function hasPublicTelegramStatementItemsBefore(
     throw new Error(error.message);
   }
 
-  return ((data as unknown as StatementSummaryPublicRow[] | null) ?? []).some(
-    isPublicTelegramStatementRowPublishable,
-  );
+  const rows = (data as unknown as StatementSummaryPublicRow[] | null) ?? [];
+  const displayDecisions = await getSelectedStatementDisplayDecisionMap({
+    sourceType: "telegram",
+    summaryIds: rows.map((row) => row.id),
+    supabase,
+  });
+
+  return rows.some((row) => displayDecisions.has(row.id));
 }
 
 export async function getConfirmedTelegramStatementSummaryIds(limit: number) {
@@ -145,14 +160,4 @@ export async function getConfirmedTelegramStatementSummaryIds(limit: number) {
       ),
     ),
   ];
-}
-
-function isPublicTelegramStatementRowPublishable(
-  row: StatementSummaryPublicRow,
-) {
-  return isStatementSentencePublishable({
-    confidence: row.extraction_confidence,
-    coreSentence: row.core_sentence,
-    documentType: row.document_type,
-  });
 }

@@ -1,4 +1,4 @@
-import { isStatementSentencePublishable } from "@/lib/statement-quality/extraction-quality";
+import { getSelectedStatementDisplayDecisionMap } from "@/lib/statement-display-decisions/repository";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import {
   HAS_MORE_BEFORE_CANDIDATE_LIMIT,
@@ -20,8 +20,6 @@ const X_PUBLIC_SUMMARY_COLUMNS = [
   "source_url",
   "posted_at",
   "document_type",
-  "core_sentence",
-  "extraction_confidence",
 ].join(",");
 
 export async function getPublicXStatementItems({
@@ -58,10 +56,22 @@ export async function getPublicXStatementItems({
     throw new Error(error.message);
   }
 
-  return ((data as unknown as XStatementSummaryPublicRow[] | null) ?? [])
-    .filter(isPublicXStatementRowPublishable)
-    .map((row) => ({
-      coreSentence: normalizeFeedSentence(row.core_sentence),
+  const rows = (data as unknown as XStatementSummaryPublicRow[] | null) ?? [];
+  const displayDecisions = await getSelectedStatementDisplayDecisionMap({
+    sourceType: "x",
+    summaryIds: rows.map((row) => row.id),
+    supabase,
+  });
+
+  return rows.flatMap((row) => {
+    const displayDecision = displayDecisions.get(row.id);
+
+    if (!displayDecision) {
+      return [];
+    }
+
+    return [{
+      coreSentence: normalizeFeedSentence(displayDecision.displaySentence),
       documentType: row.document_type,
       id: `x:${row.id}`,
       isTimeUnknown: false,
@@ -69,7 +79,8 @@ export async function getPublicXStatementItems({
       organizationName: row.organization_name,
       sourceUrl: row.source_url,
       sourceType: "x" as const,
-    }));
+    }];
+  });
 }
 
 export async function hasPublicXStatementItemsBefore(
@@ -87,7 +98,6 @@ export async function hasPublicXStatementItemsBefore(
     .select(X_PUBLIC_SUMMARY_COLUMNS)
     .eq("status", "extracted")
     .in("id", confirmedXSummaryIds)
-    .not("core_sentence", "is", null)
     .lt("posted_at", beforeIso)
     .order("posted_at", { ascending: false, nullsFirst: false })
     .limit(HAS_MORE_BEFORE_CANDIDATE_LIMIT);
@@ -96,9 +106,14 @@ export async function hasPublicXStatementItemsBefore(
     throw new Error(error.message);
   }
 
-  return ((data as unknown as XStatementSummaryPublicRow[] | null) ?? []).some(
-    isPublicXStatementRowPublishable,
-  );
+  const rows = (data as unknown as XStatementSummaryPublicRow[] | null) ?? [];
+  const displayDecisions = await getSelectedStatementDisplayDecisionMap({
+    sourceType: "x",
+    summaryIds: rows.map((row) => row.id),
+    supabase,
+  });
+
+  return rows.some((row) => displayDecisions.has(row.id));
 }
 
 export async function getConfirmedXStatementSummaryIds(limit: number) {
@@ -173,12 +188,4 @@ async function getEnabledXSourceKeys() {
   return ((data as Array<{ source_key: string }> | null) ?? []).map(
     (row) => row.source_key,
   );
-}
-
-function isPublicXStatementRowPublishable(row: XStatementSummaryPublicRow) {
-  return isStatementSentencePublishable({
-    confidence: row.extraction_confidence,
-    coreSentence: row.core_sentence,
-    documentType: row.document_type,
-  });
 }

@@ -20,6 +20,10 @@
     {
       "path": "/api/ingest/statement-topics",
       "schedule": "30 * * * *"
+    },
+    {
+      "path": "/api/ingest/statement-display-decisions",
+      "schedule": "40 * * * *"
     }
   ]
 }

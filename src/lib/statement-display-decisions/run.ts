@@ -1,0 +1,199 @@
+import "server-only";
+
+import { buildStatementSentenceCandidates } from "@/lib/statement-sentence-selections/candidates";
+import { getRowsForStatementSentenceSelection } from "@/lib/statement-sentence-selections/repository-source-rows";
+import {
+  getStatementDisplayDecisionLimit,
+  getStatementDisplayDecisionWindowHours,
+  STATEMENT_DISPLAY_DECISION_PROMPT_VERSION,
+} from "./config";
+import { compareStatementDisplayDecisionWithLlm } from "./openai";
+import {
+  assertStatementDisplayDecisionSchema,
+  buildDisplayDecisionKey,
+  getExistingStatementDisplayDecisionKeys,
+  getRequiredStatementDisplayDecisionSupabaseClient,
+  upsertStatementDisplayDecision,
+} from "./repository";
+import type {
+  StatementDisplayDecision,
+  StatementDisplayDecisionOutcome,
+  StatementDisplayDecisionRunOptions,
+  StatementDisplayDecisionRunResult,
+  StatementSentenceSelectionRow,
+} from "./types";
+import { validateStatementDisplayDecision } from "./validation";
+
+export type {
+  StatementDisplayDecisionOutcome,
+  StatementDisplayDecisionRunOptions,
+  StatementDisplayDecisionRunResult,
+} from "./types";
+
+export async function runStatementDisplayDecisionPipeline(
+  options: StatementDisplayDecisionRunOptions = {},
+): Promise<StatementDisplayDecisionRunResult> {
+  const dryRun = options.dryRun ?? false;
+  const force = options.force ?? false;
+  const limit = options.limit ?? getStatementDisplayDecisionLimit();
+  const windowHours =
+    options.windowHours ?? getStatementDisplayDecisionWindowHours();
+  const cutoffIso = new Date(
+    Date.now() - windowHours * 60 * 60 * 1000,
+  ).toISOString();
+  const supabase = getRequiredStatementDisplayDecisionSupabaseClient();
+  const rows = await getRowsForStatementSentenceSelection({
+    cutoffIso,
+    limit,
+    sourceType: options.sourceType,
+    summaryId: options.summaryId,
+    supabase,
+  });
+
+  if (!dryRun) {
+    await assertStatementDisplayDecisionSchema({ supabase });
+  }
+
+  const existingKeys =
+    dryRun || force
+      ? new Set<string>()
+      : await getExistingStatementDisplayDecisionKeys({ rows, supabase });
+  const result: StatementDisplayDecisionRunResult = {
+    dryRun,
+    failed: 0,
+    force,
+    outcomes: [],
+    rejected: 0,
+    reviewNeeded: 0,
+    rowsSeen: rows.length,
+    selected: 0,
+    skippedExisting: 0,
+    windowHours,
+  };
+
+  for (const row of rows) {
+    if (existingKeys.has(buildDisplayDecisionKey(row.sourceType, row.sourceSummaryId))) {
+      result.skippedExisting += 1;
+      result.outcomes.push(toOutcome(row, "skipped_existing"));
+      continue;
+    }
+
+    const candidates = buildStatementSentenceCandidates(row);
+
+    if (dryRun) {
+      result.outcomes.push({
+        ...toOutcome(row, "preview"),
+        candidateCount: candidates.length,
+      });
+      continue;
+    }
+
+    const decision = await decideStatementDisplay({ candidates, row });
+
+    await upsertStatementDisplayDecision({
+      comparatorModel: getComparatorModel(decision),
+      comparatorPromptVersion: STATEMENT_DISPLAY_DECISION_PROMPT_VERSION,
+      decision,
+      row,
+      supabase,
+    });
+
+    if (decision.status === "selected") {
+      result.selected += 1;
+    } else if (decision.status === "rejected") {
+      result.rejected += 1;
+    } else if (decision.status === "review_needed") {
+      result.reviewNeeded += 1;
+    } else {
+      result.failed += 1;
+    }
+
+    result.outcomes.push({
+      ...toOutcome(row, decision.status),
+      candidateCount: decision.candidateCount,
+      displaySentence: decision.displaySentence,
+      errorMessage: decision.errorMessage,
+      finalStatus: decision.status,
+      selectedMode: decision.comparatorOutput?.selected_mode ?? null,
+      selectedSentence: decision.selectedCandidate?.text ?? null,
+      topicLabel: decision.comparatorOutput?.topic_label ?? null,
+    });
+  }
+
+  return result;
+}
+
+async function decideStatementDisplay({
+  candidates,
+  row,
+}: {
+  candidates: ReturnType<typeof buildStatementSentenceCandidates>;
+  row: StatementSentenceSelectionRow;
+}): Promise<StatementDisplayDecision & { comparatorModel?: string }> {
+  if (candidates.length === 0) {
+    return failedDecision("no_sentence_candidates", candidates.length);
+  }
+
+  try {
+    const comparator = await compareStatementDisplayDecisionWithLlm({
+      candidates,
+      row,
+    });
+    const validation = validateStatementDisplayDecision({
+      candidates,
+      output: comparator.output,
+    });
+
+    return {
+      candidateCount: candidates.length,
+      comparatorModel: comparator.model,
+      comparatorOutput: comparator.output,
+      coreSentence: validation.coreSentence,
+      displaySentence: validation.displaySentence,
+      errorMessage: validation.errorMessage,
+      selectedCandidate: validation.candidate,
+      status: validation.status,
+    };
+  } catch (error) {
+    return failedDecision(getDisplayDecisionErrorMessage(error), candidates.length);
+  }
+}
+
+function failedDecision(
+  errorMessage: string,
+  candidateCount: number,
+): StatementDisplayDecision {
+  return {
+    candidateCount,
+    comparatorOutput: null,
+    coreSentence: null,
+    displaySentence: null,
+    errorMessage,
+    selectedCandidate: null,
+    status: "failed",
+  };
+}
+
+function toOutcome(
+  row: StatementSentenceSelectionRow,
+  status: StatementDisplayDecisionOutcome["status"],
+): StatementDisplayDecisionOutcome {
+  return {
+    currentCoreSentence: row.currentCoreSentence,
+    organizationName: row.organizationName,
+    sourceKey: row.sourceKey,
+    sourceSummaryId: row.sourceSummaryId,
+    sourceType: row.sourceType,
+    status,
+  };
+}
+
+function getDisplayDecisionErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function getComparatorModel(
+  decision: StatementDisplayDecision & { comparatorModel?: string },
+) {
+  return decision.comparatorModel ?? null;
+}
