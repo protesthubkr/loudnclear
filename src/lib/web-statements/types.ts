@@ -43,6 +43,7 @@ export type WebStatementSourceParser = WebStatementSourceDefinition & {
 
 export type WebStatementRunOptions = {
   dryRun?: boolean;
+  force?: boolean;
   limit?: number;
   source?: WebStatementSourceKey;
   windowHours?: number;
@@ -80,6 +81,7 @@ export type WebStatementRunResult = {
   dryRun: boolean;
   extracted: number;
   failed: number;
+  force: boolean;
   outsideWindow: number;
   results: WebStatementRunSourceResult[];
   skipped: number;

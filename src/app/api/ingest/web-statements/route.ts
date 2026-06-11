@@ -90,6 +90,7 @@ export async function POST(request: NextRequest) {
 function parseRunOptions(searchParams: URLSearchParams): WebStatementRunOptions {
   return {
     dryRun: parseOptionalBoolean(searchParams.get("dryRun")) ?? false,
+    force: parseOptionalBoolean(searchParams.get("force")) ?? false,
     limit: parseLimit(searchParams.get("limit")),
     source: parseSource(searchParams.get("source")) ?? undefined,
     windowHours: parseWindowHours(searchParams.get("windowHours")),

@@ -26,11 +26,13 @@ import type {
 export async function runPartyStatementSource({
   cutoffIso,
   dryRun,
+  force,
   limit,
   source,
 }: {
   cutoffIso: string | null;
   dryRun: boolean;
+  force: boolean;
   limit: number;
   source: PartyStatementSourceParser;
 }) {
@@ -128,14 +130,16 @@ export async function runPartyStatementSource({
 
       result.stored += 1;
 
-      if (summary.status === "extracted") {
+      if (summary.status === "extracted" && !force) {
         result.outcomes.push(
           toPartyStatementRunOutcome(document, "already_extracted"),
         );
         continue;
       }
 
-      const extractionStatus = await processPartyStatementSummary(summary);
+      const extractionStatus = await processPartyStatementSummary(summary, {
+        force,
+      });
       result.outcomes.push(toPartyStatementRunOutcome(document, extractionStatus));
 
       if (extractionStatus === "extracted") {

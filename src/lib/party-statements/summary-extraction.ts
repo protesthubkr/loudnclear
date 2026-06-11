@@ -22,10 +22,12 @@ import type { PartyStatementExtractionStatus } from "./run-types";
 
 export async function processPartyStatementSummary(
   summary: PartyStatementSummaryRow,
+  options: { force?: boolean } = {},
 ): Promise<PartyStatementExtractionStatus> {
+  const force = options.force ?? false;
   const supabase = getRequiredPartyStatementSupabaseClient();
 
-  if (summary.attempt_count >= getStatementExtractionMaxAttempts()) {
+  if (!force && summary.attempt_count >= getStatementExtractionMaxAttempts()) {
     await markPartyStatementSummaryFailed({
       errorMessage: "max_attempts_exceeded",
       summaryId: summary.id,
@@ -36,6 +38,7 @@ export async function processPartyStatementSummary(
 
   await markPartyStatementExtractionAttemptStarted({
     attemptCount: summary.attempt_count,
+    force,
     summaryId: summary.id,
     supabase,
   });

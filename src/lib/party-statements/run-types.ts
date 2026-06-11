@@ -31,6 +31,7 @@ export type PartyStatementRunResult = {
   dryRun: boolean;
   extracted: number;
   failed: number;
+  force: boolean;
   outsideWindow: number;
   results: PartyStatementRunSourceResult[];
   skipped: number;

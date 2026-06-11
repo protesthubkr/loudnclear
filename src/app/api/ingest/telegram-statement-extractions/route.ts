@@ -88,6 +88,7 @@ function parseRunOptions(
 ): TelegramStatementExtractionRunOptions {
   return {
     dryRun: parseOptionalBoolean(searchParams.get("dryRun")) ?? false,
+    force: parseOptionalBoolean(searchParams.get("force")) ?? false,
     limit: parseLimit(searchParams.get("limit")),
     summaryId: normalizeUuid(searchParams.get("summaryId")) ?? undefined,
     windowHours: parseWindowHours(searchParams.get("windowHours")),

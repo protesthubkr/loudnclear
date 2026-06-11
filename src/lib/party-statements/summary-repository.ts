@@ -71,22 +71,29 @@ export async function upsertPartyStatementSummaryCandidate({
 
 export async function markPartyStatementExtractionAttemptStarted({
   attemptCount,
+  force,
   summaryId,
   supabase,
 }: {
   attemptCount: number;
+  force?: boolean;
   summaryId: string;
   supabase: SupabaseClient;
 }) {
-  const { error } = await supabase
+  let query = supabase
     .from("party_statement_summaries")
     .update({
       attempt_count: attemptCount + 1,
       last_error: null,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", summaryId)
-    .eq("status", "pending");
+    .eq("id", summaryId);
+
+  if (!force) {
+    query = query.eq("status", "pending");
+  }
+
+  const { error } = await query;
 
   if (error) {
     throw new Error(error.message);

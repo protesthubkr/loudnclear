@@ -20,6 +20,7 @@ export async function runPartyStatementIngest(
   options: PartyStatementRunOptions = {},
 ): Promise<PartyStatementRunResult> {
   const dryRun = options.dryRun ?? false;
+  const force = options.force ?? false;
   const limit = getPartyStatementRunLimit(options.limit);
   const cutoffIso = getPartyStatementCutoffIso(options.windowHours);
   const sources = getPartyStatementSources(options.source);
@@ -28,6 +29,7 @@ export async function runPartyStatementIngest(
     dryRun,
     extracted: 0,
     failed: 0,
+    force,
     outsideWindow: 0,
     results: [],
     skipped: 0,
@@ -39,6 +41,7 @@ export async function runPartyStatementIngest(
     const sourceResult = await runPartyStatementSource({
       dryRun,
       cutoffIso,
+      force,
       limit,
       source,
     });

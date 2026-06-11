@@ -27,14 +27,17 @@ export type WebStatementExtractionStatus =
 
 export async function processWebStatementSummary(
   summary: WebStatementSummaryRow,
+  options: { force?: boolean } = {},
 ): Promise<WebStatementExtractionStatus> {
-  if (summary.status === "extracted") {
+  const force = options.force ?? false;
+
+  if (summary.status === "extracted" && !force) {
     return "already_extracted";
   }
 
   const supabase = getRequiredWebStatementSupabaseClient();
 
-  if (summary.attempt_count >= getStatementExtractionMaxAttempts()) {
+  if (!force && summary.attempt_count >= getStatementExtractionMaxAttempts()) {
     await markWebStatementSummaryFailed({
       errorMessage: "max_attempts_exceeded",
       summaryId: summary.id,
@@ -45,6 +48,7 @@ export async function processWebStatementSummary(
 
   await markWebStatementExtractionAttemptStarted({
     attemptCount: summary.attempt_count,
+    force,
     summaryId: summary.id,
     supabase,
   });

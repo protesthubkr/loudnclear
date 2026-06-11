@@ -44,6 +44,7 @@ export type PartyStatementSourceParser = PartyStatementSourceDefinition & {
 
 export type PartyStatementRunOptions = {
   dryRun?: boolean;
+  force?: boolean;
   limit?: number;
   source?: PartyStatementSourceKey;
   windowHours?: number;

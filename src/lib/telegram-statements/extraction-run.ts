@@ -25,6 +25,7 @@ import {
 
 export type TelegramStatementExtractionRunOptions = {
   dryRun?: boolean;
+  force?: boolean;
   limit?: number;
   summaryId?: string;
   windowHours?: number;
@@ -53,12 +54,14 @@ export async function runTelegramStatementExtractions(
 ): Promise<TelegramStatementExtractionRunResult> {
   const supabase = getRequiredSupabaseAdminClient();
   const dryRun = options.dryRun ?? false;
+  const force = options.force ?? false;
   const limit = options.limit ?? getStatementExtractionLimit();
   const cutoffIso = options.windowHours
     ? new Date(Date.now() - options.windowHours * 60 * 60 * 1000).toISOString()
     : null;
   const pendingRows = await getPendingStatementSummaries({
     createdAfterIso: cutoffIso,
+    force,
     limit,
     summaryId: options.summaryId,
     supabase,
@@ -79,7 +82,7 @@ export async function runTelegramStatementExtractions(
       continue;
     }
 
-    const status = await processPendingStatementSummary(summary);
+    const status = await processPendingStatementSummary(summary, { force });
     result.outcomes.push(toOutcome(summary, status));
 
     if (status === "extracted") {
@@ -96,10 +99,12 @@ export async function runTelegramStatementExtractions(
 
 async function processPendingStatementSummary(
   summary: PendingStatementSummaryRow,
+  options: { force?: boolean } = {},
 ) {
+  const force = options.force ?? false;
   const supabase = getRequiredSupabaseAdminClient();
 
-  if (summary.attempt_count >= getStatementExtractionMaxAttempts()) {
+  if (!force && summary.attempt_count >= getStatementExtractionMaxAttempts()) {
     await markStatementSummaryFailed({
       errorMessage: "max_attempts_exceeded",
       summaryId: summary.id,
@@ -110,6 +115,7 @@ async function processPendingStatementSummary(
 
   await markStatementExtractionAttemptStarted({
     attemptCount: summary.attempt_count,
+    force,
     summaryId: summary.id,
     supabase,
   });

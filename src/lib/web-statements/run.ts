@@ -33,6 +33,7 @@ export async function runWebStatementIngest(
   options: WebStatementRunOptions = {},
 ): Promise<WebStatementRunResult> {
   const dryRun = options.dryRun ?? false;
+  const force = options.force ?? false;
   const limit = options.limit ?? DEFAULT_WEB_STATEMENT_LIMIT;
   const windowHours =
     options.windowHours ?? getDefaultWebStatementWindowHours();
@@ -44,6 +45,7 @@ export async function runWebStatementIngest(
     dryRun,
     extracted: 0,
     failed: 0,
+    force,
     outsideWindow: 0,
     results: [],
     skipped: 0,
@@ -55,6 +57,7 @@ export async function runWebStatementIngest(
     const sourceResult = await runWebStatementSource({
       cutoffIso,
       dryRun,
+      force,
       limit,
       source,
     });
@@ -73,11 +76,13 @@ export async function runWebStatementIngest(
 async function runWebStatementSource({
   cutoffIso,
   dryRun,
+  force,
   limit,
   source,
 }: {
   cutoffIso: string | null;
   dryRun: boolean;
+  force: boolean;
   limit: number;
   source: WebStatementSourceParser;
 }) {
@@ -163,7 +168,9 @@ async function runWebStatementSource({
         result.candidatesCreated += 1;
       }
 
-      const extractionStatus = await processWebStatementSummary(summary);
+      const extractionStatus = await processWebStatementSummary(summary, {
+        force,
+      });
       result.outcomes.push(toWebStatementRunOutcome(document, extractionStatus));
 
       if (extractionStatus === "extracted") {

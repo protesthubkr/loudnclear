@@ -1,5 +1,9 @@
 import { getReasoningRequestOptions } from "@/lib/llm/structured-event-config";
 import {
+  parseResponsesJsonObject,
+  readResponsesOutputText,
+} from "@/lib/llm/responses-output";
+import {
   getStatementSentenceSelectionMaxOutputTokens,
   getStatementSentenceSelectorModel,
   getStatementSentenceVerifierModel,
@@ -129,7 +133,7 @@ async function requestStructuredOutput<T>({
     throw new Error("empty_openai_output");
   }
 
-  return JSON.parse(outputText) as T;
+  return parseResponsesJsonObject<T>(outputText);
 }
 
 function sanitizeSelectorOutput(
@@ -196,42 +200,5 @@ async function readJsonSafely(response: Response) {
 }
 
 function readOutputText(payload: unknown): string {
-  if (!payload || typeof payload !== "object") {
-    return "";
-  }
-
-  if ("output_text" in payload && typeof payload.output_text === "string") {
-    return payload.output_text;
-  }
-
-  if (!("output" in payload) || !Array.isArray(payload.output)) {
-    return "";
-  }
-
-  return payload.output
-    .flatMap((item) => {
-      if (!item || typeof item !== "object" || !("content" in item)) {
-        return [];
-      }
-
-      const content = item.content;
-
-      if (!Array.isArray(content)) {
-        return [];
-      }
-
-      return content.flatMap((part) => {
-        if (!part || typeof part !== "object") {
-          return [];
-        }
-
-        if ("text" in part && typeof part.text === "string") {
-          return [part.text];
-        }
-
-        return [];
-      });
-    })
-    .join("")
-    .trim();
+  return readResponsesOutputText(payload);
 }

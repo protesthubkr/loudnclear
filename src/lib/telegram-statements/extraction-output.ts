@@ -1,16 +1,20 @@
+import {
+  parseResponsesJsonObject,
+  readResponsesOutputText,
+} from "@/lib/llm/responses-output";
 import type { StatementExtractionModelOutput } from "./extractor-types";
 import { normalizeConfidence } from "./sentence-match";
 import { STATEMENT_SENTENCE_ROLES } from "./extraction-schema";
 
 export function parseStatementExtractionOutput(payload: unknown) {
-  const text = readOutputText(payload);
+  const text = readResponsesOutputText(payload);
 
   if (!text) {
     throw new Error("Statement extraction returned no output text.");
   }
 
   return sanitizeStatementExtractionOutput(
-    JSON.parse(text) as StatementExtractionModelOutput,
+    parseResponsesJsonObject<StatementExtractionModelOutput>(text),
   );
 }
 
@@ -42,45 +46,4 @@ function sanitizeStatementExtractionOutput(output: StatementExtractionModelOutpu
         ? output.target_subject.trim()
         : null,
   } satisfies StatementExtractionModelOutput;
-}
-
-function readOutputText(payload: unknown): string {
-  if (!payload || typeof payload !== "object") {
-    return "";
-  }
-
-  if ("output_text" in payload && typeof payload.output_text === "string") {
-    return payload.output_text;
-  }
-
-  if (!("output" in payload) || !Array.isArray(payload.output)) {
-    return "";
-  }
-
-  return payload.output
-    .flatMap((item) => {
-      if (!item || typeof item !== "object" || !("content" in item)) {
-        return [];
-      }
-
-      const content = item.content;
-
-      if (!Array.isArray(content)) {
-        return [];
-      }
-
-      return content.flatMap((part) => {
-        if (!part || typeof part !== "object") {
-          return [];
-        }
-
-        if ("text" in part && typeof part.text === "string") {
-          return [part.text];
-        }
-
-        return [];
-      });
-    })
-    .join("")
-    .trim();
 }

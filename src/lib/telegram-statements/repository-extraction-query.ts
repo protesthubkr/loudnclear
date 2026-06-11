@@ -21,11 +21,13 @@ const SUMMARY_BASE_SELECT = [
 
 export async function getPendingStatementSummaries({
   createdAfterIso,
+  force,
   limit,
   summaryId,
   supabase,
 }: {
   createdAfterIso?: string | null;
+  force?: boolean;
   limit: number;
   summaryId?: string;
   supabase: SupabaseClient;
@@ -33,9 +35,12 @@ export async function getPendingStatementSummaries({
   let query = supabase
     .from("telegram_statement_summaries")
     .select(SUMMARY_BASE_SELECT)
-    .eq("status", "pending")
     .order("message_created_at", { ascending: false, nullsFirst: false })
     .limit(limit);
+
+  query = force
+    ? query.in("status", ["pending", "extracted", "skipped", "failed"])
+    : query.eq("status", "pending");
 
   if (summaryId) {
     query = query.eq("id", summaryId);
