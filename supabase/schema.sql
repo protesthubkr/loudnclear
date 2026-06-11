@@ -412,15 +412,15 @@ insert into public.x_statement_sources (
   enabled
 )
 values
-  ('kfem', 'kfem', '환경운동연합', 'https://x.com/kfem', true),
-  ('equalact', 'equalact', '차제연', 'https://x.com/equalact', true),
-  ('kwau38', 'kwau38', '여성연합', 'https://x.com/kwau38', true),
+  ('kfem', 'kfem', '환경운동연합', 'https://x.com/kfem', false),
+  ('equalact', 'equalact', '차제연', 'https://x.com/equalact', false),
+  ('kwau38', 'kwau38', '여성연합', 'https://x.com/kwau38', false),
   (
     'rainbowactionkr',
     'rainbowactionkr',
     '무지개행동',
     'https://x.com/rainbowactionkr',
-    true
+    false
   )
 on conflict (source_key) do update
 set
@@ -531,9 +531,174 @@ create table if not exists public.x_statement_scan_runs (
 create index if not exists x_statement_scan_runs_started_idx
   on public.x_statement_scan_runs (started_at desc);
 
+create table if not exists public.web_statement_sources (
+  source_key text primary key,
+  organization_name text not null,
+  source_url text not null,
+  list_url text not null,
+  enabled boolean not null default true,
+  last_scanned_at timestamptz,
+  last_error text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists web_statement_sources_enabled_idx
+  on public.web_statement_sources (enabled, source_key);
+
+create index if not exists web_statement_sources_scanned_idx
+  on public.web_statement_sources (
+    last_scanned_at asc nulls first,
+    source_key
+  );
+
+insert into public.web_statement_sources (
+  source_key,
+  organization_name,
+  source_url,
+  list_url,
+  enabled
+)
+values
+  (
+    'kfem',
+    '환경운동연합',
+    'https://www.kfem.or.kr/home',
+    'https://kfem.or.kr/rss',
+    true
+  ),
+  (
+    'equalact',
+    '차제연',
+    'https://equalityact.kr/',
+    'https://equalityact.kr/feed/',
+    true
+  ),
+  (
+    'kwau38',
+    '여성연합',
+    'https://women21.or.kr/statement/',
+    'https://women21.or.kr/statement/',
+    true
+  ),
+  (
+    'rainbowactionkr',
+    '무지개행동',
+    'https://rainbowaction.kr/',
+    'https://rainbowaction.kr/ajax/template/widget/board.cm?widgetCode=w202601155a82b9b5d5110&sectionCode=s20260115fbcb39d958649&menuCode=m20260106515334a453449&baseUrl=&back_url=/21&m=21',
+    true
+  ),
+  (
+    'climateall',
+    '기후정의동맹',
+    'https://www.climatejusticealliance.kr',
+    'https://www.climatejusticealliance.kr',
+    true
+  )
+on conflict (source_key) do update
+set
+  enabled = excluded.enabled,
+  list_url = excluded.list_url,
+  organization_name = excluded.organization_name,
+  source_url = excluded.source_url,
+  updated_at = now();
+
+create table if not exists public.web_statement_documents (
+  id uuid primary key default gen_random_uuid(),
+  source_key text not null
+    references public.web_statement_sources(source_key)
+    on delete cascade,
+  external_id text not null,
+  organization_name text not null,
+  source_url text not null,
+  title text not null,
+  document_type text not null default 'position'
+    check (
+      document_type in (
+        'statement',
+        'commentary',
+        'position',
+        'press_release',
+        'press_conference',
+        'condemnation',
+        'welcome'
+      )
+    ),
+  published_at timestamptz,
+  text_snapshot text not null default '',
+  raw_payload jsonb not null default '{}'::jsonb,
+  first_seen_at timestamptz not null default now(),
+  last_seen_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (source_key, external_id)
+);
+
+create index if not exists web_statement_documents_published_idx
+  on public.web_statement_documents (published_at desc nulls last);
+
+create index if not exists web_statement_documents_source_idx
+  on public.web_statement_documents (source_key, external_id);
+
+create table if not exists public.web_statement_summaries (
+  id uuid primary key default gen_random_uuid(),
+  document_id uuid not null
+    references public.web_statement_documents(id)
+    on delete cascade,
+  source_key text not null
+    references public.web_statement_sources(source_key)
+    on delete cascade,
+  external_id text not null,
+  organization_name text not null,
+  source_url text not null,
+  title text not null,
+  published_at timestamptz,
+  document_type text not null default 'position'
+    check (
+      document_type in (
+        'statement',
+        'commentary',
+        'position',
+        'press_release',
+        'press_conference',
+        'condemnation',
+        'welcome'
+      )
+    ),
+  core_sentence text,
+  status text not null default 'pending'
+    check (status in ('pending', 'extracted', 'skipped', 'failed')),
+  extraction_confidence integer check (
+    extraction_confidence is null
+    or extraction_confidence between 0 and 100
+  ),
+  extraction_reason text,
+  core_sentence_start integer,
+  core_sentence_end integer,
+  model text,
+  prompt_version text,
+  attempt_count integer not null default 0 check (attempt_count >= 0),
+  last_error text,
+  extracted_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (document_id),
+  unique (source_key, external_id)
+);
+
+create index if not exists web_statement_summaries_public_feed_idx
+  on public.web_statement_summaries (published_at desc nulls last)
+  where status = 'extracted' and core_sentence is not null;
+
+create index if not exists web_statement_summaries_extraction_queue_idx
+  on public.web_statement_summaries (status, created_at asc)
+  where status in ('pending', 'failed');
+
+create index if not exists web_statement_summaries_source_idx
+  on public.web_statement_summaries (source_key, published_at desc nulls last);
+
 create table if not exists public.statement_topic_embeddings (
   id uuid primary key default gen_random_uuid(),
-  source_type text not null check (source_type in ('telegram', 'party', 'x')),
+  source_type text not null check (source_type in ('telegram', 'party', 'web', 'x')),
   source_summary_id uuid not null,
   embedding_model text not null,
   embedding_dimensions integer not null check (embedding_dimensions > 0),
@@ -557,7 +722,7 @@ create table if not exists public.statement_topic_links (
   topic_id uuid not null
     references public.statement_topics(id)
     on delete cascade,
-  source_type text not null check (source_type in ('telegram', 'party', 'x')),
+  source_type text not null check (source_type in ('telegram', 'party', 'web', 'x')),
   source_summary_id uuid not null,
   source_key text not null,
   source_url text not null,
@@ -577,7 +742,7 @@ create index if not exists statement_topic_links_topic_idx
 
 create table if not exists public.statement_sentence_llm_selections (
   id uuid primary key default gen_random_uuid(),
-  source_type text not null check (source_type in ('telegram', 'party', 'x')),
+  source_type text not null check (source_type in ('telegram', 'party', 'web', 'x')),
   source_summary_id uuid not null,
   source_key text not null,
   organization_name text not null,
@@ -728,6 +893,24 @@ create trigger set_updated_at_x_statement_summaries
 before update on public.x_statement_summaries
 for each row execute function public.set_updated_at();
 
+drop trigger if exists set_updated_at_web_statement_sources
+  on public.web_statement_sources;
+create trigger set_updated_at_web_statement_sources
+before update on public.web_statement_sources
+for each row execute function public.set_updated_at();
+
+drop trigger if exists set_updated_at_web_statement_documents
+  on public.web_statement_documents;
+create trigger set_updated_at_web_statement_documents
+before update on public.web_statement_documents
+for each row execute function public.set_updated_at();
+
+drop trigger if exists set_updated_at_web_statement_summaries
+  on public.web_statement_summaries;
+create trigger set_updated_at_web_statement_summaries
+before update on public.web_statement_summaries
+for each row execute function public.set_updated_at();
+
 drop trigger if exists set_updated_at_statement_topics
   on public.statement_topics;
 create trigger set_updated_at_statement_topics
@@ -765,6 +948,9 @@ alter table public.x_statement_sources enable row level security;
 alter table public.x_statement_posts enable row level security;
 alter table public.x_statement_summaries enable row level security;
 alter table public.x_statement_scan_runs enable row level security;
+alter table public.web_statement_sources enable row level security;
+alter table public.web_statement_documents enable row level security;
+alter table public.web_statement_summaries enable row level security;
 alter table public.statement_topic_embeddings enable row level security;
 alter table public.statement_topics enable row level security;
 alter table public.statement_topic_links enable row level security;
@@ -783,6 +969,9 @@ alter table public.x_statement_sources force row level security;
 alter table public.x_statement_posts force row level security;
 alter table public.x_statement_summaries force row level security;
 alter table public.x_statement_scan_runs force row level security;
+alter table public.web_statement_sources force row level security;
+alter table public.web_statement_documents force row level security;
+alter table public.web_statement_summaries force row level security;
 alter table public.statement_topic_embeddings force row level security;
 alter table public.statement_topics force row level security;
 alter table public.statement_topic_links force row level security;
@@ -793,6 +982,7 @@ grant usage on schema public to anon, authenticated;
 
 grant select on public.telegram_statement_summaries to anon, authenticated;
 grant select on public.party_statement_summaries to anon, authenticated;
+grant select on public.web_statement_summaries to anon, authenticated;
 grant select on public.x_statement_summaries to anon, authenticated;
 
 drop policy if exists telegram_statement_summaries_public_read
@@ -819,6 +1009,14 @@ drop policy if exists x_statement_summaries_public_read
   on public.x_statement_summaries;
 create policy x_statement_summaries_public_read
   on public.x_statement_summaries
+  for select
+  to anon, authenticated
+  using (status = 'extracted' and core_sentence is not null);
+
+drop policy if exists web_statement_summaries_public_read
+  on public.web_statement_summaries;
+create policy web_statement_summaries_public_read
+  on public.web_statement_summaries
   for select
   to anon, authenticated
   using (status = 'extracted' and core_sentence is not null);

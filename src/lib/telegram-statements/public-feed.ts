@@ -13,10 +13,10 @@ import {
   hasPublicTelegramStatementItemsBefore,
 } from "./public-feed-telegram";
 import {
-  getConfirmedXStatementSummaryIds,
-  getPublicXStatementItems,
-  hasPublicXStatementItemsBefore,
-} from "./public-feed-x";
+  getConfirmedWebStatementSummaryIds,
+  getPublicWebStatementItems,
+  hasPublicWebStatementItemsBefore,
+} from "./public-feed-web";
 import type { PublicStatementFeedItem } from "./public-feed-types";
 
 type PublicStatementFeedQuery = {
@@ -86,7 +86,7 @@ async function loadPublicStatementFeedWindow(
 
   const confirmedTelegramSummaryIdsPromise =
     getConfirmedTelegramStatementSummaryIds(query.limit);
-  const confirmedXSummaryIdsPromise = getConfirmedXStatementSummaryIds(
+  const confirmedWebSummaryIdsPromise = getConfirmedWebStatementSummaryIds(
     query.limit,
   );
   const partyItemsPromise = getPublicPartyStatementItems(query);
@@ -94,23 +94,23 @@ async function loadPublicStatementFeedWindow(
     ? hasPublicPartyStatementItemsBefore(query.fromIso)
     : Promise.resolve(false);
   const confirmedTelegramSummaryIds = await confirmedTelegramSummaryIdsPromise;
-  const confirmedXSummaryIds = await confirmedXSummaryIdsPromise;
+  const confirmedWebSummaryIds = await confirmedWebSummaryIdsPromise;
   const [
     telegramItems,
     partyItems,
-    xItems,
+    webItems,
     hasTelegramItemsBefore,
     hasPartyItemsBefore,
-    hasXItemsBefore,
+    hasWebItemsBefore,
   ] = await Promise.all([
       getPublicTelegramStatementItems({
         ...query,
         confirmedTelegramSummaryIds,
       }),
       partyItemsPromise,
-      getPublicXStatementItems({
+      getPublicWebStatementItems({
         ...query,
-        confirmedXSummaryIds,
+        confirmedWebSummaryIds,
       }),
       query.fromIso
         ? hasPublicTelegramStatementItemsBefore(
@@ -120,17 +120,19 @@ async function loadPublicStatementFeedWindow(
         : Promise.resolve(false),
       hasPartyItemsBeforePromise,
       query.fromIso
-        ? hasPublicXStatementItemsBefore(query.fromIso, confirmedXSummaryIds)
+        ? hasPublicWebStatementItemsBefore(query.fromIso, confirmedWebSummaryIds)
         : Promise.resolve(false),
     ]);
 
   return {
     hasMoreBefore:
-      hasTelegramItemsBefore || hasPartyItemsBefore || hasXItemsBefore,
+      hasTelegramItemsBefore ||
+      hasPartyItemsBefore ||
+      hasWebItemsBefore,
     items: mergePublicStatementFeedItems(
       telegramItems,
       partyItems,
-      xItems,
+      webItems,
       query.limit,
     ),
   };
@@ -149,10 +151,10 @@ function normalizePublicStatementFeedQuery(
 function mergePublicStatementFeedItems(
   telegramItems: PublicStatementFeedItem[],
   partyItems: PublicStatementFeedItem[],
-  xItems: PublicStatementFeedItem[],
+  webItems: PublicStatementFeedItem[],
   limit: number,
 ) {
-  return [...telegramItems, ...partyItems, ...xItems]
+  return [...telegramItems, ...partyItems, ...webItems]
     .sort(compareStatementItemsNewestFirst)
     .slice(0, limit)
     .sort(compareStatementItemsOldestFirst);

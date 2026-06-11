@@ -1,7 +1,9 @@
 const DEFAULT_TOPIC_WINDOW_HOURS = 48;
 const DEFAULT_TELEGRAM_TOPIC_THRESHOLD = 0.55;
 const DEFAULT_PARTY_TOPIC_THRESHOLD = 0.72;
+const DEFAULT_TOPIC_EMBEDDING_BATCH_SIZE = 32;
 const DEFAULT_TOPIC_EMBEDDING_DIMENSIONS = 512;
+const DEFAULT_TOPIC_EMBEDDING_INPUT_CHARS = 4000;
 const DEFAULT_TOPIC_RUN_LIMIT = 100;
 
 export function getStatementTopicWindowHours() {
@@ -37,6 +39,22 @@ export function getStatementTopicEmbeddingDimensions() {
     defaultValue: DEFAULT_TOPIC_EMBEDDING_DIMENSIONS,
     max: 3072,
     min: 64,
+  });
+}
+
+export function getStatementTopicEmbeddingInputChars() {
+  return readIntegerEnv("STATEMENT_TOPIC_EMBEDDING_INPUT_CHARS", {
+    defaultValue: DEFAULT_TOPIC_EMBEDDING_INPUT_CHARS,
+    max: 12000,
+    min: 500,
+  });
+}
+
+export function getStatementTopicEmbeddingBatchSize() {
+  return readIntegerEnv("STATEMENT_TOPIC_EMBEDDING_BATCH_SIZE", {
+    defaultValue: DEFAULT_TOPIC_EMBEDDING_BATCH_SIZE,
+    max: 128,
+    min: 1,
   });
 }
 

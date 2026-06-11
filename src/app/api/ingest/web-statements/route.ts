@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isBearerSecretAuthorized } from "@/lib/bearer-auth";
 import {
-  runStatementSentenceSelectionComparison,
-  type StatementSentenceSelectionRunOptions,
-} from "@/lib/statement-sentence-selections/run";
-import type { StatementSentenceSelectionSourceType } from "@/lib/statement-sentence-selections/types";
+  isWebStatementSourceKey,
+  runWebStatementIngest,
+} from "@/lib/web-statements/run";
+import type {
+  WebStatementRunOptions,
+  WebStatementSourceKey,
+} from "@/lib/web-statements/types";
 
 const MAX_WINDOW_HOURS = 744;
-const MAX_SELECTION_LIMIT = 500;
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -18,13 +20,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const result = await runStatementSentenceSelectionComparison(
-      parseRunOptions(request),
-    );
-
+    const result = await runWebStatementIngest(parseRunOptions(request));
     return NextResponse.json(result);
   } catch (error) {
-    if (error instanceof StatementSentenceSelectionRequestError) {
+    if (error instanceof WebStatementRequestError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
@@ -32,7 +31,7 @@ export async function GET(request: NextRequest) {
       {
         error:
           process.env.NODE_ENV === "production"
-            ? "Statement sentence selection failed"
+            ? "Web statement ingest failed"
             : error instanceof Error
               ? error.message
               : String(error),
@@ -53,58 +52,29 @@ function isAuthorized(request: NextRequest) {
   );
 }
 
-function parseRunOptions(
-  request: NextRequest,
-): StatementSentenceSelectionRunOptions {
+function parseRunOptions(request: NextRequest): WebStatementRunOptions {
   const searchParams = request.nextUrl.searchParams;
 
   return {
     dryRun: parseOptionalBoolean(searchParams.get("dryRun")) ?? false,
-    force: parseOptionalBoolean(searchParams.get("force")) ?? false,
     limit: parseLimit(searchParams.get("limit")),
-    sourceType: parseSourceType(searchParams.get("sourceType")) ?? undefined,
-    summaryId: parseSummaryId(searchParams.get("summaryId")) ?? undefined,
+    source: parseSource(searchParams.get("source")) ?? undefined,
     windowHours: parseWindowHours(searchParams.get("windowHours")),
   };
 }
 
-function parseSourceType(
-  value: string | null,
-): StatementSentenceSelectionSourceType | null {
+function parseSource(value: string | null): WebStatementSourceKey | null {
   if (!value) {
     return null;
   }
 
   const normalized = value.trim();
 
-  if (
-    normalized === "telegram" ||
-    normalized === "party" ||
-    normalized === "web" ||
-    normalized === "x"
-  ) {
+  if (isWebStatementSourceKey(normalized)) {
     return normalized;
   }
 
-  throw new StatementSentenceSelectionRequestError("Invalid sourceType.");
-}
-
-function parseSummaryId(value: string | null) {
-  const normalized = value?.trim();
-
-  if (!normalized) {
-    return null;
-  }
-
-  if (
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-      normalized,
-    )
-  ) {
-    throw new StatementSentenceSelectionRequestError("Invalid summaryId.");
-  }
-
-  return normalized;
+  throw new WebStatementRequestError("Invalid source.");
 }
 
 function parseLimit(value: string | null) {
@@ -114,8 +84,8 @@ function parseLimit(value: string | null) {
 
   const parsed = Number.parseInt(value, 10);
 
-  if (!Number.isFinite(parsed) || parsed < 1 || parsed > MAX_SELECTION_LIMIT) {
-    throw new StatementSentenceSelectionRequestError("Invalid limit.");
+  if (!Number.isFinite(parsed) || parsed < 1 || parsed > 200) {
+    throw new WebStatementRequestError("Invalid limit.");
   }
 
   return parsed;
@@ -129,7 +99,7 @@ function parseWindowHours(value: string | null) {
   const parsed = Number.parseInt(value, 10);
 
   if (!Number.isFinite(parsed) || parsed < 1 || parsed > MAX_WINDOW_HOURS) {
-    throw new StatementSentenceSelectionRequestError("Invalid windowHours.");
+    throw new WebStatementRequestError("Invalid windowHours.");
   }
 
   return parsed;
@@ -148,7 +118,7 @@ function parseOptionalBoolean(value: string | null) {
     return false;
   }
 
-  throw new StatementSentenceSelectionRequestError("Invalid boolean option.");
+  throw new WebStatementRequestError("Invalid boolean option.");
 }
 
 function methodNotAllowed(allowedMethods: string[]) {
@@ -163,4 +133,4 @@ function methodNotAllowed(allowedMethods: string[]) {
   );
 }
 
-class StatementSentenceSelectionRequestError extends Error {}
+class WebStatementRequestError extends Error {}

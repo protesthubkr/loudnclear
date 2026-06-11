@@ -4,7 +4,7 @@
 
 ## 방향
 
-- 기존 `telegram_statement_summaries.core_sentence`와 `party_statement_summaries.core_sentence`는 유지한다.
+- 기존 `telegram_statement_summaries.core_sentence`, `web_statement_summaries.core_sentence`, `party_statement_summaries.core_sentence`는 유지한다. `x_statement_summaries.core_sentence`는 과거 기록 비교용으로만 유지한다.
 - 새 결과는 `statement_sentence_llm_selections`에 저장한다.
 - selector와 verifier는 항상 모두 실행한다.
 - 제목 후보를 반드시 포함한다.
@@ -36,7 +36,7 @@ Invoke-RestMethod "$baseUrl/api/ingest/statement-sentence-selections?limit=10" -
 
 - `dryRun=true`: LLM 호출과 DB 저장 없이 대상 행과 후보 수만 확인한다.
 - `force=true`: 같은 selector/verifier 버전의 기존 비교 결과가 있어도 다시 실행한다.
-- `sourceType=telegram|party`: 특정 출처 유형만 실행한다.
+- `sourceType=telegram|web|party`: 특정 출처 유형만 실행한다. `x`는 과거 기록 점검이 필요할 때만 수동으로 다룬다.
 - `summaryId=<uuid>`: 특정 summary 한 건만 실행한다.
 - `windowHours=<1..744>`: 최근 처리 범위를 조정한다.
 - `limit=<1..100>`: 실행 건수를 조정한다.

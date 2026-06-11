@@ -2,12 +2,13 @@ import "server-only";
 
 import { createHash } from "crypto";
 import {
+  getStatementTopicEmbeddingBatchSize,
   getStatementTopicEmbeddingDimensions,
+  getStatementTopicEmbeddingInputChars,
   getStatementTopicEmbeddingModel,
 } from "./config";
 
 const OPENAI_EMBEDDINGS_URL = "https://api.openai.com/v1/embeddings";
-const MAX_EMBEDDING_INPUT_CHARS = 12000;
 
 type OpenAIEmbeddingsResponse = {
   data?: Array<{
@@ -57,10 +58,37 @@ export async function createStatementTopicEmbeddings(
     throw new StatementTopicEmbeddingConfigError();
   }
 
+  const normalizedInputs = inputs.map(normalizeEmbeddingInput);
+  const batchSize = getStatementTopicEmbeddingBatchSize();
+  const embeddings: number[][] = [];
+
+  for (let start = 0; start < normalizedInputs.length; start += batchSize) {
+    const batchInputs = normalizedInputs.slice(start, start + batchSize);
+    const batchEmbeddings = await createStatementTopicEmbeddingBatch({
+      apiKey,
+      inputs: batchInputs,
+      spec,
+    });
+
+    embeddings.push(...batchEmbeddings);
+  }
+
+  return embeddings;
+}
+
+async function createStatementTopicEmbeddingBatch({
+  apiKey,
+  inputs,
+  spec,
+}: {
+  apiKey: string;
+  inputs: string[];
+  spec: StatementTopicEmbeddingSpec;
+}) {
   const response = await fetch(OPENAI_EMBEDDINGS_URL, {
     body: JSON.stringify({
       dimensions: spec.dimensions,
-      input: inputs.map(normalizeEmbeddingInput),
+      input: inputs,
       model: spec.model,
     }),
     headers: {
@@ -107,7 +135,7 @@ export function buildStatementTopicEmbeddingText({
   return [title, body]
     .filter((value) => value?.trim())
     .join("\n")
-    .slice(0, MAX_EMBEDDING_INPUT_CHARS);
+    .slice(0, getStatementTopicEmbeddingInputChars());
 }
 
 export function hashStatementTopicEmbeddingText(text: string) {
@@ -153,7 +181,10 @@ export function averageEmbeddings(embeddings: number[][]) {
 }
 
 function normalizeEmbeddingInput(value: string) {
-  return value.replace(/\s+/g, " ").trim().slice(0, MAX_EMBEDDING_INPUT_CHARS);
+  return value
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, getStatementTopicEmbeddingInputChars());
 }
 
 async function readJsonSafely(response: Response) {

@@ -36,10 +36,20 @@ Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/ingest/party-statements?dryRun
 - 매시 00분: telegram statement scan
 - 매시 10분: telegram statement extraction
 - 매시 20분: party statement ingest
+- 매시 25분: web statement ingest
 - 매시 30분: statement topic matching
 
-statement topic matching은 원문 `text_snapshot` embedding 기준으로 동작하며, 기본 임계값은 telegram `0.55`, party `0.72`이다.
+statement topic matching은 원문 `text_snapshot` embedding 기준으로 동작한다. confirmed topic은 telegram과 공식 웹사이트 web summary가 함께 형성하고, party summary는 confirmed topic에 붙은 경우에만 공개된다.
 non-dryRun topic matching은 현재 party threshold보다 낮은 과거 matched row를 먼저 `unmatched`로 정리한다.
+
+공식 웹사이트 source:
+- 환경운동연합: `https://kfem.or.kr/rss`
+- 차제연: `https://equalityact.kr/feed/`
+- 여성연합: `https://women21.or.kr/statement/`
+- 무지개행동: `https://rainbowaction.kr/`
+- 기후정의동맹: `https://www.climatejusticealliance.kr`
+
+X API ingest cron은 중지되어 있으며, 공개 피드와 confirmed topic 입력에도 X summary를 사용하지 않는다. 기존 X 테이블과 수동 route는 과거 기록 점검용으로만 남긴다.
 
 ## 배포 후 확인 순서
 
@@ -50,6 +60,7 @@ non-dryRun topic matching은 현재 party threshold보다 낮은 과거 matched 
    - `/api/ingest/telegram-statements?dryRun=true`
    - `/api/ingest/telegram-statement-extractions?dryRun=true`
    - `/api/ingest/party-statements?dryRun=true&limit=3`
+   - `/api/ingest/web-statements?dryRun=true&limit=3`
    - `/api/ingest/statement-topics?dryRun=true`
 5. 문제가 없으면 non-dryRun을 1회씩 실행한다.
 6. `/` 공개 피드와 `/ops` 상태를 확인한다.
@@ -61,7 +72,8 @@ non-dryRun topic matching은 현재 party threshold보다 낮은 과거 matched 
 - OpenAI error: `OPENAI_API_KEY`, model, output token 설정 확인
 - reasoning 설정 오류: `OPENAI_STATEMENT_REASONING_EFFORT` 값 확인
 - party source empty: parser 변경 또는 source site HTML 변경 확인
-- topic no match: confirmed telegram topic 생성 여부와 threshold 확인
+- web source empty: RSS/detail HTML 변경 또는 source별 candidate rule 확인
+- topic no match: confirmed topic 형성 주체인 telegram/web summary 생성 여부와 threshold 확인
 
 ## 2026-06-01 백필
 
@@ -81,11 +93,14 @@ $windowHours = [Math]::Ceiling(([DateTimeOffset]::Now - $since).TotalHours)
 Invoke-RestMethod "$baseUrl/api/ingest/telegram-statements?dryRun=true&backfill=true&windowHours=$windowHours&maxPages=80" -Headers $headers
 Invoke-RestMethod "$baseUrl/api/ingest/telegram-statements?backfill=true&windowHours=$windowHours&maxPages=80" -Headers $headers
 
-Invoke-RestMethod "$baseUrl/api/ingest/party-statements?dryRun=true&windowHours=$windowHours&limit=200" -Headers $headers
-Invoke-RestMethod "$baseUrl/api/ingest/party-statements?windowHours=$windowHours&limit=200" -Headers $headers
-
 Invoke-RestMethod "$baseUrl/api/ingest/telegram-statement-extractions?dryRun=true&windowHours=$windowHours&limit=100" -Headers $headers
 Invoke-RestMethod "$baseUrl/api/ingest/telegram-statement-extractions?windowHours=$windowHours&limit=100" -Headers $headers
+
+Invoke-RestMethod "$baseUrl/api/ingest/web-statements?dryRun=true&windowHours=$windowHours&limit=200" -Headers $headers
+Invoke-RestMethod "$baseUrl/api/ingest/web-statements?windowHours=$windowHours&limit=200" -Headers $headers
+
+Invoke-RestMethod "$baseUrl/api/ingest/party-statements?dryRun=true&windowHours=$windowHours&limit=200" -Headers $headers
+Invoke-RestMethod "$baseUrl/api/ingest/party-statements?windowHours=$windowHours&limit=200" -Headers $headers
 
 Invoke-RestMethod "$baseUrl/api/ingest/statement-topics?dryRun=true&windowHours=$windowHours&limit=500" -Headers $headers
 Invoke-RestMethod "$baseUrl/api/ingest/statement-topics?windowHours=$windowHours&limit=500" -Headers $headers
@@ -95,6 +110,6 @@ Invoke-RestMethod "$baseUrl/api/ingest/statement-sentence-selections?dryRun=true
 Invoke-RestMethod "$baseUrl/api/ingest/statement-sentence-selections?windowHours=$windowHours&limit=10" -Headers $headers
 ```
 
-`telegram-statement-extractions`는 `pendingSeen`이 남아 있으면 같은 명령을 반복한다. topic matching은 telegram extraction이 충분히 끝난 뒤 실행해야 정당 성명 공개 게이트가 안정적으로 열린다.
+`telegram-statement-extractions`는 `pendingSeen`이 남아 있으면 같은 명령을 반복한다. topic matching은 telegram/web extraction이 충분히 끝난 뒤 실행해야 confirmed topic과 정당 성명 공개 게이트가 안정적으로 열린다.
 
 sentence selector/verifier v4는 `statement_sentence_llm_selections.final_status`에 `review_needed`를 저장할 수 있어야 한다. production에서 non-dryRun을 실행하기 전에 `supabase/migrations/20260610143000_statement_sentence_llm_review_needed.sql`을 loudnclear Supabase에 적용한다.

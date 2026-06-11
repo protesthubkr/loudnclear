@@ -7,9 +7,11 @@ const USER_AGENT =
 
 export async function fetchPartyStatementHtml({
   allowInsecureTls,
+  headers,
   url,
 }: {
   allowInsecureTls?: boolean;
+  headers?: Record<string, string>;
   url: string;
 }) {
   try {
@@ -17,6 +19,7 @@ export async function fetchPartyStatementHtml({
       cache: "no-store",
       headers: {
         "user-agent": USER_AGENT,
+        ...headers,
       },
     });
 
@@ -37,7 +40,7 @@ export async function fetchPartyStatementHtml({
       throw new Error(`Fetch ${url} failed: ${getFetchErrorMessage(error)}`);
     }
 
-    return fetchHtmlWithInsecureTls(url);
+    return fetchHtmlWithInsecureTls(url, headers);
   }
 }
 
@@ -157,13 +160,14 @@ function isTlsCertificateError(error: unknown) {
   return false;
 }
 
-function fetchHtmlWithInsecureTls(url: string) {
+function fetchHtmlWithInsecureTls(url: string, headers?: Record<string, string>) {
   return new Promise<string>((resolve, reject) => {
     const request = httpsRequest(
       url,
       {
         headers: {
           "user-agent": USER_AGENT,
+          ...headers,
         },
         rejectUnauthorized: false,
       },
@@ -177,6 +181,7 @@ function fetchHtmlWithInsecureTls(url: string) {
           resolve(
             fetchHtmlWithInsecureTls(
               new URL(response.headers.location, url).toString(),
+              headers,
             ),
           );
           return;

@@ -10,14 +10,17 @@
 - 공개 피드는 `/`에서 제공된다.
 - 수집/처리 API는 `/api/ingest/*` 아래에 유지되어 있다.
 - 정당 성명 노출은 `status = extracted`이고 `topic_gate_status = matched`인 문서만 허용한다.
-- 정당 성명 자동 매칭은 confirmed telegram topic 기반으로만 수행한다.
+- confirmed topic은 telegram과 공식 웹사이트 web summary를 primary source로 사용한다.
+- 정당 성명 자동 매칭은 confirmed topic 기반으로만 수행한다.
 - 현재 DB는 설정에 따라 `protesthub`와 같은 Supabase를 공유할 수 있다.
 
 ## 운영 원칙
 
 - 공개 피드는 검증된 핵심 문장만 노출한다.
 - 정당 사이트 문서는 confirmed topic에 붙은 경우에만 공개한다.
-- 직접 party+telegram 단건 임베딩으로 새 topic을 만들어 공개하지 않는다.
+- 정당 사이트 단건 임베딩으로 새 topic을 만들어 공개하지 않는다.
+- 웹사이트 중 confirmed topic 형성 주체가 되는 source는 `web_statement_*` 파이프라인에 분리해 둔다.
+- X API 수집은 중지하고, 기존 X 데이터는 과거 기록 점검용으로만 다룬다.
 - 수집, 추출, 토픽 매칭은 idempotent하게 반복 실행 가능해야 한다.
 - 운영자가 코드 수정 없이 오노출 문서를 숨기거나 수동 매칭할 수 있는 최소 관리면을 둔다.
 

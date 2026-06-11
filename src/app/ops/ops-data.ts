@@ -30,7 +30,7 @@ export type DataSourceRow = {
   last_scanned_at: string | null;
   organization_name: string;
   source_key: string;
-  source_type: "party" | "telegram" | "x";
+  source_type: "party" | "telegram" | "web" | "x";
   source_url: string;
   status: string;
 };
@@ -67,6 +67,7 @@ export async function getOpsDashboardData(supabase: OpsSupabaseClient) {
   const [
     telegramCounts,
     partyCounts,
+    webCounts,
     xCounts,
     recentScanRuns,
     dataSources,
@@ -76,6 +77,7 @@ export async function getOpsDashboardData(supabase: OpsSupabaseClient) {
   ] = await Promise.all([
     getTelegramCounts(supabase),
     getPartyCounts(supabase),
+    getWebCounts(supabase),
     getXCounts(supabase),
     getRecentScanRuns(supabase),
     getDataSources(supabase),
@@ -92,6 +94,7 @@ export async function getOpsDashboardData(supabase: OpsSupabaseClient) {
     recentScanRuns,
     recentTopics,
     telegramCounts,
+    webCounts,
     xCounts,
   };
 }
@@ -191,6 +194,29 @@ async function getXCounts(supabase: OpsSupabaseClient): Promise<StatusCount> {
   return { extracted, failed, pending, skipped };
 }
 
+async function getWebCounts(supabase: OpsSupabaseClient): Promise<StatusCount> {
+  const [extracted, pending, skipped, failed] = await Promise.all([
+    countRows(supabase, "web_statement_summaries", {
+      column: "status",
+      value: "extracted",
+    }),
+    countRows(supabase, "web_statement_summaries", {
+      column: "status",
+      value: "pending",
+    }),
+    countRows(supabase, "web_statement_summaries", {
+      column: "status",
+      value: "skipped",
+    }),
+    countRows(supabase, "web_statement_summaries", {
+      column: "status",
+      value: "failed",
+    }),
+  ]);
+
+  return { extracted, failed, pending, skipped };
+}
+
 async function countRows(
   supabase: OpsSupabaseClient,
   table: string,
@@ -240,13 +266,14 @@ async function getRecentScanRuns(supabase: OpsSupabaseClient) {
 }
 
 async function getDataSources(supabase: OpsSupabaseClient) {
-  const [telegramSources, partySources, xSources] = await Promise.all([
+  const [telegramSources, partySources, webSources, xSources] = await Promise.all([
     getTelegramSources(supabase),
     getPartySources(supabase),
+    getWebSources(supabase),
     getXSources(supabase),
   ]);
 
-  return [...telegramSources, ...partySources, ...xSources].sort((first, second) => {
+  return [...telegramSources, ...partySources, ...webSources, ...xSources].sort((first, second) => {
     const typeCompare = first.source_type.localeCompare(second.source_type);
 
     if (typeCompare !== 0) {
@@ -398,6 +425,46 @@ async function getXSources(
   }));
 }
 
+async function getWebSources(
+  supabase: OpsSupabaseClient,
+): Promise<DataSourceRow[]> {
+  const { data, error } = await supabase
+    .from("web_statement_sources")
+    .select(
+      [
+        "source_key",
+        "organization_name",
+        "list_url",
+        "enabled",
+        "last_scanned_at",
+        "last_error",
+      ].join(","),
+    )
+    .eq("enabled", true)
+    .order("source_key", { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return ((data ?? []) as unknown as Array<{
+    enabled: boolean;
+    last_error: string | null;
+    last_scanned_at: string | null;
+    list_url: string;
+    organization_name: string;
+    source_key: string;
+  }>).map((source) => ({
+    last_error: source.last_error,
+    last_scanned_at: source.last_scanned_at,
+    organization_name: source.organization_name,
+    source_key: source.source_key,
+    source_type: "web" as const,
+    source_url: source.list_url,
+    status: source.enabled ? "enabled" : "disabled",
+  }));
+}
+
 function getTelegramSourceStatus(source: {
   statement_feed_enabled: boolean;
   status: string;
@@ -410,7 +477,7 @@ function getTelegramSourceStatus(source: {
 }
 
 async function getRecentProblems(supabase: OpsSupabaseClient) {
-  const [party, telegram, x] = await Promise.all([
+  const [party, telegram, web, x] = await Promise.all([
     supabase
       .from("party_statement_summaries")
       .select(
@@ -423,6 +490,14 @@ async function getRecentProblems(supabase: OpsSupabaseClient) {
       .from("telegram_statement_summaries")
       .select(
         "organization_name,source_url,status,last_error,updated_at,core_sentence",
+      )
+      .in("status", ["failed", "skipped"])
+      .order("updated_at", { ascending: false })
+      .limit(6),
+    supabase
+      .from("web_statement_summaries")
+      .select(
+        "organization_name,source_url,title,status,last_error,updated_at,core_sentence",
       )
       .in("status", ["failed", "skipped"])
       .order("updated_at", { ascending: false })
@@ -445,6 +520,10 @@ async function getRecentProblems(supabase: OpsSupabaseClient) {
     throw new Error(telegram.error.message);
   }
 
+  if (web.error) {
+    throw new Error(web.error.message);
+  }
+
   if (x.error) {
     throw new Error(x.error.message);
   }
@@ -452,6 +531,7 @@ async function getRecentProblems(supabase: OpsSupabaseClient) {
   return [
     ...((party.data ?? []) as ProblemRow[]),
     ...((telegram.data ?? []) as ProblemRow[]),
+    ...((web.data ?? []) as ProblemRow[]),
     ...((x.data ?? []) as ProblemRow[]),
   ]
     .sort((first, second) => second.updated_at.localeCompare(first.updated_at))

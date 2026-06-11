@@ -86,6 +86,16 @@ const STATEMENT_PROFILES = [
     logoSrc: "/rainbowact-logo.jpg",
     patterns: ["무지개행동", "rainbowactionkr"],
   },
+  {
+    label: "기후정의동맹",
+    logoSrc: "/climateall-logo.webp",
+    patterns: [
+      "기후정의동맹",
+      "체제전환을 위한 기후정의동맹",
+      "climateall",
+      "climatejusticealliance",
+    ],
+  },
 ] satisfies Array<StatementProfile & { patterns: string[] }>;
 
 const PARTY_STATEMENT_LOGO_SRCS = new Set([

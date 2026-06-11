@@ -11,7 +11,7 @@ import { matchPartySummariesToTopics } from "./party-matching";
 import {
   getRecentPartyTopicSummaries,
   getRecentTelegramTopicSummaries,
-  getRecentXTopicSummaries,
+  getRecentWebTopicSummaries,
   getRequiredStatementTopicSupabaseClient,
   clearLowConfidencePartyTopicMatches,
   markExpiredStatementTopics,
@@ -41,12 +41,12 @@ export async function runStatementTopicMatching(
     limit,
     supabase,
   });
-  const xRows = await getRecentXTopicSummaries({
+  const webRows = await getRecentWebTopicSummaries({
     cutoffIso,
     limit,
     supabase,
   });
-  const primaryRows = [...telegramRows, ...xRows].sort(
+  const primaryRows = [...telegramRows, ...webRows].sort(
     comparePrimaryRowsByDisplayAtDesc,
   );
   const partyRows = await getRecentPartyTopicSummaries({
@@ -65,8 +65,9 @@ export async function runStatementTopicMatching(
     stalePartyMatchesCleared: 0,
     partyUnmatched: 0,
     telegramSummariesSeen: telegramRows.length,
+    webSummariesSeen: webRows.length,
     windowHours,
-    xSummariesSeen: xRows.length,
+    xSummariesSeen: 0,
   };
 
   if (dryRun) {

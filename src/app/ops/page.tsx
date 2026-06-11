@@ -46,6 +46,7 @@ export default async function OpsPage() {
     recentScanRuns,
     recentTopics,
     telegramCounts,
+    webCounts,
     xCounts,
   } = await getOpsDashboardData(supabase);
 
@@ -64,6 +65,9 @@ export default async function OpsPage() {
         <StatusCard label="X extracted" value={xCounts.extracted} />
         <StatusCard label="X pending" value={xCounts.pending} />
         <StatusCard label="X failed" value={xCounts.failed} />
+        <StatusCard label="Web extracted" value={webCounts.extracted} />
+        <StatusCard label="Web pending" value={webCounts.pending} />
+        <StatusCard label="Web failed" value={webCounts.failed} />
         <StatusCard label="정당 공개 후보" value={partyCounts.matched ?? 0} />
         <StatusCard label="정당 unmatched" value={partyCounts.unmatched ?? 0} />
         <StatusCard label="정당 failed" value={partyCounts.failed} />
@@ -89,7 +93,7 @@ export default async function OpsPage() {
             emptyText="데이터 소스가 없습니다."
             headers={["유형", "source", "상태", "마지막 수집", "오류"]}
             rows={dataSources.map((source) => [
-              source.source_type === "party" ? "web" : source.source_type,
+              source.source_type,
               <a
                 className="ops-table-link"
                 href={source.source_url}

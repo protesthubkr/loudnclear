@@ -15,6 +15,7 @@ export type StatementTopicRunResult = {
   stalePartyMatchesCleared: number;
   partyUnmatched: number;
   telegramSummariesSeen: number;
+  webSummariesSeen: number;
   windowHours: number;
   xSummariesSeen: number;
 };

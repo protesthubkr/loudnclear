@@ -13,7 +13,7 @@ const DOCUMENT_PATTERNS: Array<{
   { documentType: "commentary", pattern: /논평|논평문/, reason: "keyword:commentary" },
   { documentType: "statement", pattern: /성명|성명서/, reason: "keyword:statement" },
   { documentType: "position", pattern: /입장문|공식\s*입장|입장을\s*밝힌다/, reason: "keyword:position" },
-  { documentType: "press_conference", pattern: /기자회견문|회견문/, reason: "keyword:press_conference" },
+  { documentType: "press_conference", pattern: /기자회견문|회견문|\[기자회견\]|기자회견\s*[-–—:：]/, reason: "keyword:press_conference" },
   { documentType: "press_release", pattern: /보도자료/, reason: "keyword:press_release" },
   { documentType: "condemnation", pattern: /규탄문|규탄\s*성명/, reason: "keyword:condemnation" },
   { documentType: "welcome", pattern: /환영문|환영\s*논평|환영\s*성명/, reason: "keyword:welcome" },
@@ -21,6 +21,12 @@ const DOCUMENT_PATTERNS: Array<{
 
 const STANCE_PATTERN =
   /(규탄한다|규탄합니다|촉구한다|촉구합니다|촉구하며|요구한다|요구합니다|요구하며|철회하라|철회하십시오|중단하라|중단돼야|사퇴하라|반대한다|반대합니다|환영한다|환영합니다|비판한다|비판합니다|우려한다|우려합니다|연대한다|연대합니다)/;
+
+const DOCUMENT_TITLE_STANCE_RE =
+  /(규탄|촉구|요구|반대|철회|중단|환영|우려|비판|경고|고발|사과|보장|개혁|처벌|책임|없었다)/;
+
+const LINKED_STATEMENT_DOCUMENT_RE =
+  /(기자회견문|회견문|발언문|전문\s*(?:보기|바로가기)|원문\s*(?:보기|바로가기)?|바로가기)/;
 
 const LEAD_STANCE_NEWS_RE =
   /^(<소식>|\[소식\]|.*브리핑\b).{0,220}(규탄|촉구|요구|철회|반대|비판|우려|책임|교섭|개혁|보장|처벌|착수|마십시오)/;
@@ -65,7 +71,7 @@ export function classifyTelegramStatementMessage(
   if (detected) {
     if (
       NOTICE_DOCUMENT_TYPES.has(detected.documentType) &&
-      !hasDirectStatementStance(text)
+      !hasStatementDocumentSignal(detected.documentType, text)
     ) {
       return null;
     }
@@ -141,6 +147,26 @@ function looksLikeOnlyEventNotice(leadText: string, stanceText: string) {
     WEAK_NOTICE_PATTERN.test(leadText) &&
     !STANCE_PATTERN.test(stanceText) &&
     !hasSubstantiveCampaignStance(stanceText)
+  );
+}
+
+function hasStatementDocumentSignal(
+  documentType: TelegramStatementDocumentType,
+  text: string,
+) {
+  if (hasDirectStatementStance(text)) {
+    return true;
+  }
+
+  if (documentType !== "press_conference") {
+    return false;
+  }
+
+  const leadText = text.slice(0, 320);
+
+  return (
+    DOCUMENT_TITLE_STANCE_RE.test(leadText) &&
+    LINKED_STATEMENT_DOCUMENT_RE.test(text)
   );
 }
 

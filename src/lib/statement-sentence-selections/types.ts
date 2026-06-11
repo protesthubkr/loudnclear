@@ -1,6 +1,10 @@
 import type { TelegramStatementDocumentType } from "@/lib/telegram-statements/types";
 
-export type StatementSentenceSelectionSourceType = "telegram" | "party" | "x";
+export type StatementSentenceSelectionSourceType =
+  | "telegram"
+  | "party"
+  | "web"
+  | "x";
 
 export type StatementSentenceSelectionFinalStatus =
   | "selected"
