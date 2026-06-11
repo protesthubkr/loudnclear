@@ -205,9 +205,7 @@ export function StatementFeedList({
       {loadError ? (
         <p className="statement-feed-status is-error">{loadError}</p>
       ) : null}
-      {!hasMoreBefore && items.length > 0 ? (
-        <p className="statement-feed-status">더 불러올 성명문이 없습니다</p>
-      ) : null}
+      <p className="statement-feed-status">문의 badplankr@gmail.com</p>
     </>
   );
 }

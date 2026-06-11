@@ -6,11 +6,13 @@ export type StatementExtractionCandidate = {
 const MAX_CANDIDATES = 50;
 const MIN_CANDIDATE_LENGTH = 10;
 const MAX_CANDIDATE_LENGTH = 260;
-const LEADING_BULLET_RE = /^\s*[-–—ㆍ·*]\s*/;
+const LEADING_BULLET_RE = /^\s*[-–—ㆍ·*■□◆◇▶▷●○※#]\s*/;
 const LEADING_DOCUMENT_LABEL_RE =
   /^\[[^\]\n]{0,30}(?:성명|논평|입장|보도자료|기자회견문|회견문|브리핑)[^\]\n]{0,20}\]\s*/;
+const TRAILING_DOCUMENT_LABEL_RE =
+  /\s*\[[^\]\n]{0,80}(?:성명|논평|입장|보도자료|기자회견문|회견문|브리핑|대변인|원내대변인|수석대변인|원내수석대변인|부대변인|공보단장)[^\]\n]{0,30}\]\s*$/;
 const DISPLAYABLE_SENTENCE_END_RE =
-  /(다|했다|하였다|합니다|했습니다|겠다|겠습니다|십시오|하라|해야 한다|해야 합니다)[.!?。！？]?$/;
+  /(다|했다|하였다|합니다|했습니다|겠다|겠습니다|십시오|하라|것인가|해야 한다|해야 합니다)[.!?。！？]?$/;
 
 export function buildStatementExtractionCandidates(textSnapshot: string) {
   const candidates: StatementExtractionCandidate[] = [];
@@ -116,6 +118,7 @@ function normalizeCandidateText(text: string) {
     .replace(/\s+/g, " ")
     .replace(LEADING_BULLET_RE, "")
     .replace(LEADING_DOCUMENT_LABEL_RE, "")
+    .replace(TRAILING_DOCUMENT_LABEL_RE, "")
     .trim();
 }
 
