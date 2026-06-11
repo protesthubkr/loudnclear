@@ -1,4 +1,3 @@
-const DEFAULT_SELECTION_MODEL = "gpt-5-mini";
 const DEFAULT_SELECTION_LIMIT = 10;
 const DEFAULT_SELECTION_WINDOW_HOURS = 240;
 const DEFAULT_MAX_CANDIDATES = 140;
@@ -13,8 +12,7 @@ export const STATEMENT_SENTENCE_VERIFIER_PROMPT_VERSION =
 export function getStatementSentenceSelectorModel() {
   return (
     process.env.OPENAI_STATEMENT_SELECTOR_MODEL?.trim() ||
-    process.env.OPENAI_STATEMENT_EXTRACTION_MODEL?.trim() ||
-    DEFAULT_SELECTION_MODEL
+    readRequiredStringEnv("OPENAI_STATEMENT_EXTRACTION_MODEL")
   );
 }
 
@@ -22,8 +20,7 @@ export function getStatementSentenceVerifierModel() {
   return (
     process.env.OPENAI_STATEMENT_VERIFIER_MODEL?.trim() ||
     process.env.OPENAI_STATEMENT_SELECTOR_MODEL?.trim() ||
-    process.env.OPENAI_STATEMENT_EXTRACTION_MODEL?.trim() ||
-    DEFAULT_SELECTION_MODEL
+    readRequiredStringEnv("OPENAI_STATEMENT_EXTRACTION_MODEL")
   );
 }
 
@@ -105,4 +102,14 @@ export function getStatementSentenceSelectionMaxOutputTokens() {
   }
 
   return Math.min(Math.max(parsed, 800), 6000);
+}
+
+function readRequiredStringEnv(key: string) {
+  const value = process.env[key]?.trim();
+
+  if (!value) {
+    throw new Error(`${key} is not configured.`);
+  }
+
+  return value;
 }

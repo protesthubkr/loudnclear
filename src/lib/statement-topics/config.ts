@@ -1,7 +1,6 @@
 const DEFAULT_TOPIC_WINDOW_HOURS = 48;
 const DEFAULT_TELEGRAM_TOPIC_THRESHOLD = 0.55;
 const DEFAULT_PARTY_TOPIC_THRESHOLD = 0.72;
-const DEFAULT_TOPIC_EMBEDDING_MODEL = "text-embedding-3-small";
 const DEFAULT_TOPIC_EMBEDDING_DIMENSIONS = 512;
 const DEFAULT_TOPIC_RUN_LIMIT = 100;
 
@@ -30,10 +29,7 @@ export function getStatementTopicPartyThreshold() {
 }
 
 export function getStatementTopicEmbeddingModel() {
-  return (
-    process.env.OPENAI_STATEMENT_TOPIC_EMBEDDING_MODEL?.trim() ||
-    DEFAULT_TOPIC_EMBEDDING_MODEL
-  );
+  return readRequiredStringEnv("OPENAI_STATEMENT_TOPIC_EMBEDDING_MODEL");
 }
 
 export function getStatementTopicEmbeddingDimensions() {
@@ -104,4 +100,14 @@ function readNumberEnv(
   }
 
   return Math.min(Math.max(parsed, min), max);
+}
+
+function readRequiredStringEnv(key: string) {
+  const value = process.env[key]?.trim();
+
+  if (!value) {
+    throw new Error(`${key} is not configured.`);
+  }
+
+  return value;
 }

@@ -7,10 +7,7 @@ import {
 } from "./extraction-config";
 import { buildTelegramStatementExtractionPrompt } from "./extraction-prompt";
 import { buildStatementExtractionCandidates } from "./extraction-candidates";
-import {
-  TELEGRAM_STATEMENT_EXTRACTION_PROMPT_VERSION,
-  buildTelegramStatementExtractionSchema,
-} from "./extraction-schema";
+import { buildTelegramStatementExtractionSchema } from "./extraction-schema";
 import { TelegramStatementExtractionRequestError } from "./extractor-errors";
 import type { ExtractTelegramStatementSentenceInput } from "./extractor-types";
 import { parseStatementExtractionOutput } from "./extraction-output";
@@ -72,7 +69,7 @@ function getScopedStatementPromptCacheKey(
 
   const guidanceKey = getExtractionGuidanceCacheKey(input.extractionGuidance);
 
-  return [TELEGRAM_STATEMENT_EXTRACTION_PROMPT_VERSION, guidanceKey]
+  return [promptCacheKey, guidanceKey]
     .filter(Boolean)
     .join("_");
 }

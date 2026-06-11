@@ -1,19 +1,13 @@
-const DEFAULT_STATEMENT_EXTRACTION_MODEL = "gpt-5-nano";
-const DEFAULT_STATEMENT_COMPACTION_MODEL = "gpt-5-nano";
 const DEFAULT_STATEMENT_EXTRACTION_MAX_OUTPUT_TOKENS = 1200;
 const DEFAULT_STATEMENT_COMPACTION_MAX_OUTPUT_TOKENS = 400;
 const DEFAULT_STATEMENT_EXTRACTION_INPUT_CHARS = 3000;
 const DEFAULT_STATEMENT_COMPACTION_INPUT_CHARS = 2500;
 const DEFAULT_STATEMENT_EXTRACTION_LIMIT = 10;
 const DEFAULT_STATEMENT_EXTRACTION_MAX_ATTEMPTS = 3;
-const DEFAULT_STATEMENT_PROMPT_CACHE_KEY = "telegram_statement_sentence_v10";
-const DEFAULT_STATEMENT_COMPACTION_MIN_CHARS = 95;
+const DEFAULT_STATEMENT_COMPACTION_MIN_CHARS = 60;
 
 export function getStatementExtractionModel() {
-  return (
-    process.env.OPENAI_STATEMENT_EXTRACTION_MODEL?.trim() ||
-    DEFAULT_STATEMENT_EXTRACTION_MODEL
-  );
+  return readRequiredStringEnv("OPENAI_STATEMENT_EXTRACTION_MODEL");
 }
 
 export function getStatementExtractionMaxOutputTokens() {
@@ -35,8 +29,7 @@ export function getStatementExtractionMaxOutputTokens() {
 export function getStatementCompactionModel() {
   return (
     process.env.OPENAI_STATEMENT_COMPACTION_MODEL?.trim() ||
-    process.env.OPENAI_STATEMENT_EXTRACTION_MODEL?.trim() ||
-    DEFAULT_STATEMENT_COMPACTION_MODEL
+    getStatementExtractionModel()
   );
 }
 
@@ -111,7 +104,7 @@ export function getStatementPromptCacheKey() {
     return null;
   }
 
-  return value || DEFAULT_STATEMENT_PROMPT_CACHE_KEY;
+  return value || null;
 }
 
 export function getStatementPromptCacheRetention() {
@@ -154,4 +147,14 @@ export function getStatementExtractionMaxAttempts() {
   }
 
   return Math.min(Math.max(parsed, 1), 10);
+}
+
+function readRequiredStringEnv(key: string) {
+  const value = process.env[key]?.trim();
+
+  if (!value) {
+    throw new Error(`${key} is not configured.`);
+  }
+
+  return value;
 }

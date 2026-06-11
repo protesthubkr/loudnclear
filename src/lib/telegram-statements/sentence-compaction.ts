@@ -19,12 +19,15 @@ import {
   SENTENCE_COMPACTION_SCHEMA,
 } from "./sentence-compaction-prompt";
 import {
+  getLeadingSpeakerLabelStrippedSentence,
   isCompactedSentenceSafe,
   shouldTryCompaction,
 } from "./sentence-compaction-safety";
 import { findSentenceInSource } from "./sentence-match";
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
+const LEADING_SPEAKER_LABEL_CLEANUP_VERSION =
+  "statement_sentence_prefix_cleanup_v1";
 
 export async function compactStatementExtractionIfUseful({
   extraction,
@@ -33,6 +36,19 @@ export async function compactStatementExtractionIfUseful({
   extraction: TelegramStatementSentenceExtractionResult;
   textSnapshot: string;
 }) {
+  const labelStrippedExtraction = stripLeadingSpeakerLabelIfSafe({
+    extraction,
+    textSnapshot,
+  });
+
+  if (!shouldTryCompaction(labelStrippedExtraction)) {
+    return labelStrippedExtraction;
+  }
+
+  if (labelStrippedExtraction !== extraction) {
+    extraction = labelStrippedExtraction;
+  }
+
   if (!shouldTryCompaction(extraction)) {
     return extraction;
   }
@@ -76,6 +92,43 @@ export async function compactStatementExtractionIfUseful({
     model: `${extraction.model}+${model}`,
     promptVersion: `${extraction.promptVersion}+${COMPACTED_SENTENCE_PROMPT_VERSION}`,
     reason: `${extraction.reason}; compacted:${output.reason.trim()}`,
+  };
+}
+
+function stripLeadingSpeakerLabelIfSafe({
+  extraction,
+  textSnapshot,
+}: {
+  extraction: TelegramStatementSentenceExtractionResult;
+  textSnapshot: string;
+}) {
+  const compacted = getLeadingSpeakerLabelStrippedSentence(
+    extraction.coreSentence,
+  );
+
+  if (!compacted) {
+    return extraction;
+  }
+
+  const match = findSentenceInSource(textSnapshot, compacted);
+
+  if (
+    !match ||
+    !isCompactedSentenceSafe({
+      compacted: match.sentence,
+      original: extraction.coreSentence,
+    })
+  ) {
+    return extraction;
+  }
+
+  return {
+    ...extraction,
+    coreSentence: match.sentence,
+    coreSentenceEnd: match.end,
+    coreSentenceStart: match.start,
+    promptVersion: `${extraction.promptVersion}+${LEADING_SPEAKER_LABEL_CLEANUP_VERSION}`,
+    reason: `${extraction.reason}; compacted:leading_speaker_label`,
   };
 }
 

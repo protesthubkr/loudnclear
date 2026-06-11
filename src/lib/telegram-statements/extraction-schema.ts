@@ -1,5 +1,5 @@
 export const TELEGRAM_STATEMENT_EXTRACTION_PROMPT_VERSION =
-  "telegram_statement_sentence_v10";
+  "telegram_statement_sentence_v14";
 
 export const STATEMENT_SENTENCE_ROLES = [
   "demand",
