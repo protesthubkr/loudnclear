@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isBearerSecretAuthorized } from "@/lib/bearer-auth";
+import {
+  hasUrlRunOptions,
+  isCronRunAuthorized,
+  isManualRunAuthorized,
+  ManualRunRequestError,
+  readManualRunSearchParams,
+  rejectUrlRunOptions,
+  unauthorized,
+} from "@/lib/ingest-route";
 import { runTelegramStatementFeedScan } from "@/lib/telegram-statements/run";
 import type { TelegramStatementRunOptions } from "@/lib/telegram-statements/types";
 
@@ -9,12 +17,18 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isCronRunAuthorized(request)) {
+    return unauthorized();
+  }
+
+  if (hasUrlRunOptions(request)) {
+    return rejectUrlRunOptions();
   }
 
   try {
-    const result = await runTelegramStatementFeedScan(parseRunOptions(request));
+    const result = await runTelegramStatementFeedScan(
+      parseRunOptions(new URLSearchParams()),
+    );
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof TelegramStatementIngestRequestError) {
@@ -35,19 +49,39 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export function POST() {
-  return methodNotAllowed(["GET"]);
+export async function POST(request: NextRequest) {
+  if (!isManualRunAuthorized(request)) {
+    return unauthorized();
+  }
+
+  try {
+    const result = await runTelegramStatementFeedScan(
+      parseRunOptions(await readManualRunSearchParams(request)),
+    );
+    return NextResponse.json(result);
+  } catch (error) {
+    if (
+      error instanceof TelegramStatementIngestRequestError ||
+      error instanceof ManualRunRequestError
+    ) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    return NextResponse.json(
+      {
+        error:
+          process.env.NODE_ENV === "production"
+            ? "Telegram statement ingest failed"
+            : error instanceof Error
+              ? error.message
+              : String(error),
+      },
+      { status: 500 },
+    );
+  }
 }
 
-function isAuthorized(request: NextRequest) {
-  return isBearerSecretAuthorized(
-    request.headers.get("authorization"),
-    process.env.CRON_SECRET,
-  );
-}
-
-function parseRunOptions(request: NextRequest): TelegramStatementRunOptions {
-  const searchParams = request.nextUrl.searchParams;
+function parseRunOptions(searchParams: URLSearchParams): TelegramStatementRunOptions {
   const windowHours = parseWindowHours(searchParams.get("windowHours"));
 
   return {
@@ -118,18 +152,6 @@ function parseOptionalBoolean(value: string | null) {
   }
 
   throw new TelegramStatementIngestRequestError("Invalid boolean option.");
-}
-
-function methodNotAllowed(allowedMethods: string[]) {
-  return NextResponse.json(
-    { error: "Method Not Allowed" },
-    {
-      headers: {
-        Allow: allowedMethods.join(", "),
-      },
-      status: 405,
-    },
-  );
 }
 
 class TelegramStatementIngestRequestError extends Error {}

@@ -987,43 +987,17 @@ alter table public.statement_sentence_llm_selections force row level security;
 revoke all on all tables in schema public from anon, authenticated;
 grant usage on schema public to anon, authenticated;
 
-grant select on public.telegram_statement_summaries to anon, authenticated;
-grant select on public.party_statement_summaries to anon, authenticated;
-grant select on public.web_statement_summaries to anon, authenticated;
-grant select on public.x_statement_summaries to anon, authenticated;
-
 drop policy if exists telegram_statement_summaries_public_read
   on public.telegram_statement_summaries;
-create policy telegram_statement_summaries_public_read
-  on public.telegram_statement_summaries
-  for select
-  to anon, authenticated
-  using (status = 'extracted' and core_sentence is not null);
 
 drop policy if exists party_statement_summaries_public_read
   on public.party_statement_summaries;
-create policy party_statement_summaries_public_read
-  on public.party_statement_summaries
-  for select
-  to anon, authenticated
-  using (
-    status = 'extracted'
-    and core_sentence is not null
-    and topic_gate_status = 'matched'
-  );
 
 drop policy if exists x_statement_summaries_public_read
   on public.x_statement_summaries;
-create policy x_statement_summaries_public_read
-  on public.x_statement_summaries
-  for select
-  to anon, authenticated
-  using (status = 'extracted' and core_sentence is not null);
 
 drop policy if exists web_statement_summaries_public_read
   on public.web_statement_summaries;
-create policy web_statement_summaries_public_read
-  on public.web_statement_summaries
-  for select
-  to anon, authenticated
-  using (status = 'extracted' and core_sentence is not null);
+
+-- Public statement feed rows are served through the Next.js API with the
+-- service role key. Do not expose summary tables directly to anon clients.

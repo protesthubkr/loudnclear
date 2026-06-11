@@ -1,6 +1,6 @@
 import { isStatementSentencePublishable } from "@/lib/statement-quality/extraction-quality";
 import { getStatementTopicPartyThreshold } from "@/lib/statement-topics/config";
-import { getSupabaseClient } from "@/lib/supabase";
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import {
   HAS_MORE_BEFORE_CANDIDATE_LIMIT,
   normalizeFeedSentence,
@@ -30,7 +30,7 @@ export async function getPublicPartyStatementItems({
   limit,
   toIso,
 }: PublicStatementSourceQuery) {
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseAdminClient();
 
   if (!supabase) {
     return [] satisfies PublicStatementFeedItem[];
@@ -65,7 +65,7 @@ export async function getPublicPartyStatementItems({
 }
 
 export async function hasPublicPartyStatementItemsBefore(beforeIso: string) {
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseAdminClient();
 
   if (!supabase) {
     return false;

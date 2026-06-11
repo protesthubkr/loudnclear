@@ -6,13 +6,14 @@ const contentSecurityPolicy = [
   "base-uri 'self'",
   "object-src 'none'",
   "frame-ancestors 'none'",
+  "frame-src 'none'",
   "form-action 'self'",
   `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' https: data: blob:",
+  `img-src 'self' data: blob:${isDevelopment ? " https:" : ""}`,
   "font-src 'self' data:",
-  "connect-src 'self' https: ws: wss:",
-  "media-src 'self' https: data: blob:",
+  `connect-src 'self'${isDevelopment ? " https: ws: wss:" : ""}`,
+  `media-src 'self' data: blob:${isDevelopment ? " https:" : ""}`,
   "worker-src 'self' blob:",
   "manifest-src 'self'",
 ].join("; ");
@@ -47,6 +48,7 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
   devIndicators: false,
+  poweredByHeader: false,
   async headers() {
     return [
       {

@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isBearerSecretAuthorized } from "@/lib/bearer-auth";
+import {
+  hasUrlRunOptions,
+  isManualRunAuthorized,
+  ManualRunRequestError,
+  methodNotAllowed,
+  readManualRunSearchParams,
+  rejectUrlRunOptions,
+  unauthorized,
+} from "@/lib/ingest-route";
 import {
   createTelegramStatementExtractionBatch,
   syncTelegramStatementExtractionBatch,
@@ -14,13 +22,30 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isManualRunAuthorized(request)) {
+    return unauthorized();
+  }
+
+  if (hasUrlRunOptions(request)) {
+    return rejectUrlRunOptions();
   }
 
   try {
+    const searchParams = await readManualRunSearchParams(request);
+    const openaiBatchId = normalizeBatchId(searchParams.get("batchId"));
+
+    if (openaiBatchId) {
+      const result = await syncTelegramStatementExtractionBatch({
+        importResults:
+          parseOptionalBoolean(searchParams.get("importResults")) ?? false,
+        openaiBatchId,
+      });
+
+      return NextResponse.json(result);
+    }
+
     const result = await createTelegramStatementExtractionBatch(
-      parseCreateOptions(request),
+      parseCreateOptions(searchParams),
     );
     return NextResponse.json(result);
   } catch (error) {
@@ -28,46 +53,13 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const openaiBatchId = normalizeBatchId(
-      request.nextUrl.searchParams.get("batchId"),
-    );
-
-    if (!openaiBatchId) {
-      throw new TelegramStatementExtractionBatchRequestError(
-        "Missing batchId.",
-      );
-    }
-
-    const result = await syncTelegramStatementExtractionBatch({
-      importResults:
-        parseOptionalBoolean(request.nextUrl.searchParams.get("importResults")) ??
-        false,
-      openaiBatchId,
-    });
-    return NextResponse.json(result);
-  } catch (error) {
-    return handleError(error, "Telegram statement extraction batch sync failed");
-  }
-}
-
-function isAuthorized(request: NextRequest) {
-  return isBearerSecretAuthorized(
-    request.headers.get("authorization"),
-    process.env.CRON_SECRET,
-  );
+export function GET() {
+  return methodNotAllowed(["POST"]);
 }
 
 function parseCreateOptions(
-  request: NextRequest,
+  searchParams: URLSearchParams,
 ): TelegramStatementExtractionBatchCreateOptions {
-  const searchParams = request.nextUrl.searchParams;
-
   return {
     dryRun: parseOptionalBoolean(searchParams.get("dryRun")) ?? false,
     limit: parseLimit(searchParams.get("limit")),
@@ -143,6 +135,10 @@ function parseOptionalBoolean(value: string | null) {
 
 function handleError(error: unknown, productionMessage: string) {
   if (error instanceof TelegramStatementExtractionBatchRequestError) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  if (error instanceof ManualRunRequestError) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 

@@ -160,15 +160,37 @@ function isTlsCertificateError(error: unknown) {
   return false;
 }
 
-function fetchHtmlWithInsecureTls(url: string, headers?: Record<string, string>) {
+function fetchHtmlWithInsecureTls(
+  url: string,
+  headers?: Record<string, string>,
+  options?: {
+    originalHostname?: string;
+    redirectCount?: number;
+  },
+) {
+  const parsedUrl = new URL(url);
+  const originalHostname = options?.originalHostname ?? parsedUrl.hostname;
+  const redirectCount = options?.redirectCount ?? 0;
+
+  if (parsedUrl.protocol !== "https:" || parsedUrl.hostname !== originalHostname) {
+    return Promise.reject(
+      new Error(`Blocked insecure TLS fetch outside ${originalHostname}.`),
+    );
+  }
+
+  if (redirectCount > 3) {
+    return Promise.reject(new Error(`Fetch ${url} exceeded redirect limit.`));
+  }
+
   return new Promise<string>((resolve, reject) => {
     const request = httpsRequest(
-      url,
+      parsedUrl,
       {
         headers: {
           "user-agent": USER_AGENT,
           ...headers,
         },
+        // Limited fallback for known source sites with broken certificate chains.
         rejectUnauthorized: false,
       },
       (response) => {
@@ -178,10 +200,27 @@ function fetchHtmlWithInsecureTls(url: string, headers?: Record<string, string>)
           response.statusCode < 400 &&
           response.headers.location
         ) {
+          const nextUrl = new URL(response.headers.location, parsedUrl);
+
+          if (
+            nextUrl.protocol !== "https:" ||
+            nextUrl.hostname !== originalHostname
+          ) {
+            reject(
+              new Error(`Blocked insecure TLS redirect outside ${originalHostname}.`),
+            );
+            response.resume();
+            return;
+          }
+
           resolve(
             fetchHtmlWithInsecureTls(
-              new URL(response.headers.location, url).toString(),
+              nextUrl.toString(),
               headers,
+              {
+                originalHostname,
+                redirectCount: redirectCount + 1,
+              },
             ),
           );
           return;

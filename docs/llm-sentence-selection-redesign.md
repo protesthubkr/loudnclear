@@ -27,9 +27,9 @@ processed summary row
 실행 API:
 
 ```powershell
-$headers = @{ Authorization = "Bearer $env:CRON_SECRET" }
-Invoke-RestMethod "$baseUrl/api/ingest/statement-sentence-selections?dryRun=true&limit=10" -Headers $headers
-Invoke-RestMethod "$baseUrl/api/ingest/statement-sentence-selections?limit=10" -Headers $headers
+$headers = @{ Authorization = "Bearer $env:OPS_RUN_SECRET" }
+Invoke-RestMethod -Method Post "$baseUrl/api/ingest/statement-sentence-selections" -Headers $headers -ContentType 'application/json' -Body (@{ dryRun = $true; limit = 10 } | ConvertTo-Json)
+Invoke-RestMethod -Method Post "$baseUrl/api/ingest/statement-sentence-selections" -Headers $headers -ContentType 'application/json' -Body (@{ limit = 10 } | ConvertTo-Json)
 ```
 
 옵션:

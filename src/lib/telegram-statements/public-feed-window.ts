@@ -1,6 +1,6 @@
 import type { PublicStatementFeedItem } from "./public-feed-types";
 
-const STATEMENT_FEED_WINDOW_DAYS = 7;
+export const STATEMENT_FEED_WINDOW_DAYS = 7;
 export const STATEMENT_FEED_WINDOW_ITEM_LIMIT = 500;
 
 export type StatementFeedWindow = {

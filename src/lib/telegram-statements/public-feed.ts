@@ -1,4 +1,4 @@
-import { getSupabaseClient } from "@/lib/supabase";
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import {
   compareStatementItemsNewestFirst,
   compareStatementItemsOldestFirst,
@@ -75,7 +75,7 @@ async function loadPublicStatementFeedWindow(
   query: Required<Pick<PublicStatementFeedQuery, "limit">> &
     Omit<PublicStatementFeedQuery, "limit">,
 ): Promise<PublicStatementFeedWindowData> {
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseAdminClient();
 
   if (!supabase) {
     return {

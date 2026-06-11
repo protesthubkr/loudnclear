@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isBearerSecretAuthorized } from "@/lib/bearer-auth";
+import {
+  hasUrlRunOptions,
+  isCronRunAuthorized,
+  isManualRunAuthorized,
+  ManualRunRequestError,
+  readManualRunSearchParams,
+  rejectUrlRunOptions,
+  unauthorized,
+} from "@/lib/ingest-route";
 import {
   getStatementTopicErrorMessage,
   runStatementTopicMatching,
@@ -12,12 +20,18 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isCronRunAuthorized(request)) {
+    return unauthorized();
+  }
+
+  if (hasUrlRunOptions(request)) {
+    return rejectUrlRunOptions();
   }
 
   try {
-    const result = await runStatementTopicMatching(parseRunOptions(request));
+    const result = await runStatementTopicMatching(
+      parseRunOptions(new URLSearchParams()),
+    );
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof StatementTopicRequestError) {
@@ -36,20 +50,37 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export function POST() {
-  return methodNotAllowed(["GET"]);
+export async function POST(request: NextRequest) {
+  if (!isManualRunAuthorized(request)) {
+    return unauthorized();
+  }
+
+  try {
+    const result = await runStatementTopicMatching(
+      parseRunOptions(await readManualRunSearchParams(request)),
+    );
+    return NextResponse.json(result);
+  } catch (error) {
+    if (
+      error instanceof StatementTopicRequestError ||
+      error instanceof ManualRunRequestError
+    ) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    return NextResponse.json(
+      {
+        error:
+          process.env.NODE_ENV === "production"
+            ? "Statement topic matching failed"
+            : getStatementTopicErrorMessage(error),
+      },
+      { status: 500 },
+    );
+  }
 }
 
-function isAuthorized(request: NextRequest) {
-  return isBearerSecretAuthorized(
-    request.headers.get("authorization"),
-    process.env.CRON_SECRET,
-  );
-}
-
-function parseRunOptions(request: NextRequest): StatementTopicRunOptions {
-  const searchParams = request.nextUrl.searchParams;
-
+function parseRunOptions(searchParams: URLSearchParams): StatementTopicRunOptions {
   return {
     dryRun: parseOptionalBoolean(searchParams.get("dryRun")) ?? false,
     limit: parseLimit(searchParams.get("limit")),
@@ -99,18 +130,6 @@ function parseOptionalBoolean(value: string | null) {
   }
 
   throw new StatementTopicRequestError("Invalid boolean option.");
-}
-
-function methodNotAllowed(allowedMethods: string[]) {
-  return NextResponse.json(
-    { error: "Method Not Allowed" },
-    {
-      headers: {
-        Allow: allowedMethods.join(", "),
-      },
-      status: 405,
-    },
-  );
 }
 
 class StatementTopicRequestError extends Error {}

@@ -1,5 +1,4 @@
 import { isStatementSentencePublishable } from "@/lib/statement-quality/extraction-quality";
-import { getSupabaseClient } from "@/lib/supabase";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import {
   HAS_MORE_BEFORE_CANDIDATE_LIMIT,
@@ -32,7 +31,7 @@ export async function getPublicWebStatementItems({
   limit,
   toIso,
 }: PublicWebStatementSourceQuery) {
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseAdminClient();
 
   if (!supabase || confirmedWebSummaryIds.length === 0) {
     return [] satisfies PublicStatementFeedItem[];
@@ -78,7 +77,7 @@ export async function hasPublicWebStatementItemsBefore(
   beforeIso: string,
   confirmedWebSummaryIds: string[],
 ) {
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseAdminClient();
 
   if (!supabase || confirmedWebSummaryIds.length === 0) {
     return false;
