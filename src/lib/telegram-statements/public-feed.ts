@@ -8,12 +8,10 @@ import {
   getPublicPartyStatementItems,
 } from "./public-feed-party";
 import {
-  getConfirmedTelegramStatementSummaryIds,
   getPublicTelegramStatementItems,
   hasPublicTelegramStatementItemsBefore,
 } from "./public-feed-telegram";
 import {
-  getConfirmedWebStatementSummaryIds,
   getPublicWebStatementItems,
   hasPublicWebStatementItemsBefore,
 } from "./public-feed-web";
@@ -84,17 +82,10 @@ async function loadPublicStatementFeedWindow(
     };
   }
 
-  const confirmedTelegramSummaryIdsPromise =
-    getConfirmedTelegramStatementSummaryIds(query.limit);
-  const confirmedWebSummaryIdsPromise = getConfirmedWebStatementSummaryIds(
-    query.limit,
-  );
   const partyItemsPromise = getPublicPartyStatementItems(query);
   const hasPartyItemsBeforePromise = query.fromIso
     ? hasPublicPartyStatementItemsBefore(query.fromIso)
     : Promise.resolve(false);
-  const confirmedTelegramSummaryIds = await confirmedTelegramSummaryIdsPromise;
-  const confirmedWebSummaryIds = await confirmedWebSummaryIdsPromise;
   const [
     telegramItems,
     partyItems,
@@ -103,24 +94,15 @@ async function loadPublicStatementFeedWindow(
     hasPartyItemsBefore,
     hasWebItemsBefore,
   ] = await Promise.all([
-      getPublicTelegramStatementItems({
-        ...query,
-        confirmedTelegramSummaryIds,
-      }),
+      getPublicTelegramStatementItems(query),
       partyItemsPromise,
-      getPublicWebStatementItems({
-        ...query,
-        confirmedWebSummaryIds,
-      }),
+      getPublicWebStatementItems(query),
       query.fromIso
-        ? hasPublicTelegramStatementItemsBefore(
-            query.fromIso,
-            confirmedTelegramSummaryIds,
-          )
+        ? hasPublicTelegramStatementItemsBefore(query.fromIso)
         : Promise.resolve(false),
       hasPartyItemsBeforePromise,
       query.fromIso
-        ? hasPublicWebStatementItemsBefore(query.fromIso, confirmedWebSummaryIds)
+        ? hasPublicWebStatementItemsBefore(query.fromIso)
         : Promise.resolve(false),
     ]);
 

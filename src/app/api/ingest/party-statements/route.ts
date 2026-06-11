@@ -90,8 +90,23 @@ function parseRunOptions(searchParams: URLSearchParams): PartyStatementRunOption
     force: parseOptionalBoolean(searchParams.get("force")) ?? false,
     limit: parseLimit(searchParams.get("limit")),
     source: parseSource(searchParams.get("source")) ?? undefined,
+    summaryId: parseSummaryId(searchParams.get("summaryId")) ?? undefined,
     windowHours: parseWindowHours(searchParams.get("windowHours")),
   };
+}
+
+function parseSummaryId(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim();
+
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(normalized)) {
+    throw new PartyStatementRequestError("Invalid summaryId.");
+  }
+
+  return normalized;
 }
 
 function parseSource(value: string | null): PartyStatementSourceKey | null {

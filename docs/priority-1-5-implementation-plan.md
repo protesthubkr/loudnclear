@@ -24,11 +24,19 @@
 - 운영 runbook을 작성한다.
 - 로컬 dry-run과 production 검증 절차를 문서화한다.
 
-cron 초안:
+cron 기준:
 - `0 * * * *` `/api/ingest/telegram-statements`
 - `10 * * * *` `/api/ingest/telegram-statement-extractions`
-- `20 * * * *` `/api/ingest/party-statements`
-- `30 * * * *` `/api/ingest/statement-topics`
+- `15 */3 * * *` `/api/ingest/web-statements`
+- `20 */2 * * *` `/api/ingest/party-statements`
+- `35 */6 * * *` `/api/ingest/statement-topics`
+- `45 * * * *` `/api/ingest/statement-display-decisions`
+
+운영 기본값:
+- `WEB_STATEMENT_INGEST_WINDOW_HOURS=168`
+- `STATEMENT_TOPIC_WINDOW_HOURS=72`
+- `STATEMENT_TOPIC_RUN_LIMIT=200`
+- `STATEMENT_DISPLAY_DECISION_LIMIT=20`
 
 완료 기준:
 - Vercel 배포 시 cron job이 생성될 수 있다.

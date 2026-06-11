@@ -19,7 +19,7 @@ export function shouldCollectMessage(
     return message.messageId > baselineMessageId;
   }
 
-  return Boolean(message.createdAt && message.createdAt >= cutoff);
+  return isAtOrAfterCutoff(message.createdAt, cutoff);
 }
 
 export function shouldStopScanningPage(
@@ -41,7 +41,7 @@ export function shouldStopScanningPage(
     return true;
   }
 
-  if (oldestMessage.createdAt && oldestMessage.createdAt < cutoff) {
+  if (isBeforeCutoff(oldestMessage.createdAt, cutoff)) {
     return true;
   }
 
@@ -58,7 +58,7 @@ export function shouldStopBackfillPage(
     return true;
   }
 
-  if (oldestMessage.createdAt && oldestMessage.createdAt < cutoffIso) {
+  if (isBeforeCutoff(oldestMessage.createdAt, cutoffIso)) {
     return true;
   }
 
@@ -118,4 +118,34 @@ export function pickNewerMessage(
         messageId: next.messageId,
       }
     : current;
+}
+
+function isAtOrAfterCutoff(value: string | null, cutoffIso: string) {
+  if (!value) {
+    return false;
+  }
+
+  const valueTime = Date.parse(value);
+  const cutoffTime = Date.parse(cutoffIso);
+
+  return (
+    Number.isFinite(valueTime) &&
+    Number.isFinite(cutoffTime) &&
+    valueTime >= cutoffTime
+  );
+}
+
+function isBeforeCutoff(value: string | null, cutoffIso: string) {
+  if (!value) {
+    return false;
+  }
+
+  const valueTime = Date.parse(value);
+  const cutoffTime = Date.parse(cutoffIso);
+
+  return (
+    Number.isFinite(valueTime) &&
+    Number.isFinite(cutoffTime) &&
+    valueTime < cutoffTime
+  );
 }

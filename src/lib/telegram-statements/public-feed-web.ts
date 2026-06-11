@@ -10,10 +10,6 @@ import type {
   WebStatementSummaryPublicRow,
 } from "./public-feed-types";
 
-type PublicWebStatementSourceQuery = PublicStatementSourceQuery & {
-  confirmedWebSummaryIds: string[];
-};
-
 const WEB_PUBLIC_SUMMARY_COLUMNS = [
   "id",
   "source_key",
@@ -24,14 +20,19 @@ const WEB_PUBLIC_SUMMARY_COLUMNS = [
 ].join(",");
 
 export async function getPublicWebStatementItems({
-  confirmedWebSummaryIds,
   fromIso,
   limit,
   toIso,
-}: PublicWebStatementSourceQuery) {
+}: PublicStatementSourceQuery) {
   const supabase = getSupabaseAdminClient();
 
-  if (!supabase || confirmedWebSummaryIds.length === 0) {
+  if (!supabase) {
+    return [] satisfies PublicStatementFeedItem[];
+  }
+
+  const enabledSourceKeys = await getEnabledWebSourceKeys();
+
+  if (enabledSourceKeys.length === 0) {
     return [] satisfies PublicStatementFeedItem[];
   }
 
@@ -39,7 +40,7 @@ export async function getPublicWebStatementItems({
     .from("web_statement_summaries")
     .select(WEB_PUBLIC_SUMMARY_COLUMNS)
     .eq("status", "extracted")
-    .in("id", confirmedWebSummaryIds);
+    .in("source_key", enabledSourceKeys);
 
   if (fromIso) {
     query = query.gte("published_at", fromIso);
@@ -86,11 +87,16 @@ export async function getPublicWebStatementItems({
 
 export async function hasPublicWebStatementItemsBefore(
   beforeIso: string,
-  confirmedWebSummaryIds: string[],
 ) {
   const supabase = getSupabaseAdminClient();
 
-  if (!supabase || confirmedWebSummaryIds.length === 0) {
+  if (!supabase) {
+    return false;
+  }
+
+  const enabledSourceKeys = await getEnabledWebSourceKeys();
+
+  if (enabledSourceKeys.length === 0) {
     return false;
   }
 
@@ -98,7 +104,7 @@ export async function hasPublicWebStatementItemsBefore(
     .from("web_statement_summaries")
     .select(WEB_PUBLIC_SUMMARY_COLUMNS)
     .eq("status", "extracted")
-    .in("id", confirmedWebSummaryIds)
+    .in("source_key", enabledSourceKeys)
     .lt("published_at", beforeIso)
     .order("published_at", { ascending: false, nullsFirst: false })
     .limit(HAS_MORE_BEFORE_CANDIDATE_LIMIT);
@@ -115,59 +121,6 @@ export async function hasPublicWebStatementItemsBefore(
   });
 
   return rows.some((row) => displayDecisions.has(row.id));
-}
-
-export async function getConfirmedWebStatementSummaryIds(limit: number) {
-  const supabase = getSupabaseAdminClient();
-
-  if (!supabase) {
-    return [] as string[];
-  }
-
-  const enabledSourceKeys = await getEnabledWebSourceKeys();
-
-  if (enabledSourceKeys.length === 0) {
-    return [] as string[];
-  }
-
-  const { data: topics, error: topicsError } = await supabase
-    .from("statement_topics")
-    .select("id")
-    .eq("status", "confirmed")
-    .order("window_ended_at", { ascending: false, nullsFirst: false })
-    .limit(Math.max(limit, 100));
-
-  if (topicsError) {
-    throw new Error(topicsError.message);
-  }
-
-  const topicIds = ((topics as Array<{ id: string }> | null) ?? []).map(
-    (topic) => topic.id,
-  );
-
-  if (topicIds.length === 0) {
-    return [] as string[];
-  }
-
-  const { data: links, error: linksError } = await supabase
-    .from("statement_topic_links")
-    .select("source_summary_id")
-    .eq("source_type", "web")
-    .in("source_key", enabledSourceKeys)
-    .in("topic_id", topicIds)
-    .limit(Math.max(limit * 10, 1000));
-
-  if (linksError) {
-    throw new Error(linksError.message);
-  }
-
-  return [
-    ...new Set(
-      ((links as Array<{ source_summary_id: string }> | null) ?? []).map(
-        (link) => link.source_summary_id,
-      ),
-    ),
-  ];
 }
 
 async function getEnabledWebSourceKeys() {

@@ -49,7 +49,7 @@ export async function collectBackfillTelegramStatementMessages({
       ...page.messages.filter(
         (message) =>
           message.text.trim().length > 0 &&
-          Boolean(message.createdAt && message.createdAt >= cutoffIso),
+          isAtOrAfterCutoff(message.createdAt, cutoffIso),
       ),
     );
 
@@ -68,6 +68,21 @@ export async function collectBackfillTelegramStatementMessages({
     cursorMessage,
     messages,
   };
+}
+
+function isAtOrAfterCutoff(value: string | null, cutoffIso: string) {
+  if (!value) {
+    return false;
+  }
+
+  const valueTime = Date.parse(value);
+  const cutoffTime = Date.parse(cutoffIso);
+
+  return (
+    Number.isFinite(valueTime) &&
+    Number.isFinite(cutoffTime) &&
+    valueTime >= cutoffTime
+  );
 }
 
 export async function collectNewTelegramStatementMessages({

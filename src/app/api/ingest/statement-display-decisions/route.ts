@@ -94,6 +94,7 @@ function parseRunOptions(
     dryRun: parseOptionalBoolean(searchParams.get("dryRun")) ?? false,
     force: parseOptionalBoolean(searchParams.get("force")) ?? false,
     limit: parseLimit(searchParams.get("limit")),
+    retryFailed: parseOptionalBoolean(searchParams.get("retryFailed")) ?? false,
     sourceType: parseSourceType(searchParams.get("sourceType")) ?? undefined,
     summaryId: parseSummaryId(searchParams.get("summaryId")) ?? undefined,
     windowHours: parseWindowHours(searchParams.get("windowHours")),

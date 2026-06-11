@@ -1,9 +1,7 @@
-import {
-  getStatementSentenceSelectionLimit,
-  getStatementSentenceSelectionWindowHours,
-} from "@/lib/statement-sentence-selections/config";
+import { getStatementSentenceSelectionWindowHours } from "@/lib/statement-sentence-selections/config";
 
 const DEFAULT_CONTEXT_CHARS = 20000;
+const DEFAULT_DISPLAY_DECISION_LIMIT = 20;
 const DEFAULT_MAX_OUTPUT_TOKENS = 1400;
 const DEFAULT_REASONING_EFFORT = "medium";
 
@@ -25,13 +23,13 @@ export function getStatementDisplayDecisionLimit() {
   const value = process.env.STATEMENT_DISPLAY_DECISION_LIMIT;
 
   if (!value) {
-    return getStatementSentenceSelectionLimit();
+    return DEFAULT_DISPLAY_DECISION_LIMIT;
   }
 
   const parsed = Number.parseInt(value, 10);
 
   if (!Number.isFinite(parsed)) {
-    return getStatementSentenceSelectionLimit();
+    return DEFAULT_DISPLAY_DECISION_LIMIT;
   }
 
   return Math.min(Math.max(parsed, 1), 500);

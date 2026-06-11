@@ -58,9 +58,10 @@ confirmed topic 형성 웹사이트 수집:
 현재 앱은 summary 테이블을 직접 읽는다. v1에서는 공개 feed에 필요한 summary 테이블에만 anon select를 허용하고 RLS로 row를 제한한다.
 
 - Telegram: `status = 'extracted' and core_sentence is not null`
-- Web: `status = 'extracted' and core_sentence is not null`이며 confirmed topic link에 포함된 row만 feed query에서 읽는다.
+- Web: `status = 'extracted' and core_sentence is not null` and a selected display decision.
 - Party: `status = 'extracted' and core_sentence is not null and topic_gate_status = 'matched'`
 - Party public feed query also requires `topic_match_confidence >= STATEMENT_TOPIC_PARTY_THRESHOLD` so rows matched under an older lower threshold do not stay visible.
+- Telegram/Web public feed rows require `status = 'extracted'`, `core_sentence is not null`, and a selected display decision. Confirmed topic links are no longer required for Telegram/Web visibility.
 
 ## 인덱스 기준
 

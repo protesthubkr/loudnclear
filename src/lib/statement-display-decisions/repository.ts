@@ -71,6 +71,41 @@ export async function getExistingStatementDisplayDecisionKeys({
   );
 }
 
+export async function getFailedStatementDisplayDecisionKeys({
+  rows,
+  supabase,
+}: {
+  rows: StatementSentenceSelectionRow[];
+  supabase: SupabaseClient;
+}) {
+  if (rows.length === 0) {
+    return new Set<string>();
+  }
+
+  const { data, error } = await supabase
+    .from("statement_display_decisions")
+    .select("source_type,source_summary_id")
+    .eq("comparator_prompt_version", STATEMENT_DISPLAY_DECISION_PROMPT_VERSION)
+    .eq("final_status", "failed")
+    .in(
+      "source_summary_id",
+      rows.map((row) => row.sourceSummaryId),
+    );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return new Set(
+    ((data as Array<{
+      source_summary_id: string;
+      source_type: StatementSentenceSelectionSourceType;
+    }> | null) ?? []).map((row) =>
+      buildDisplayDecisionKey(row.source_type, row.source_summary_id),
+    ),
+  );
+}
+
 export async function upsertStatementDisplayDecision({
   comparatorModel,
   comparatorPromptVersion,

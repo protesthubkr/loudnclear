@@ -69,6 +69,26 @@ export async function upsertPartyStatementSummaryCandidate({
   return normalizeSummaryRow(existing as unknown as PartyStatementSummaryRow);
 }
 
+export async function getPartyStatementSummaryById({
+  summaryId,
+  supabase,
+}: {
+  summaryId: string;
+  supabase: SupabaseClient;
+}) {
+  const { data, error } = await supabase
+    .from("party_statement_summaries")
+    .select(SUMMARY_SELECT)
+    .eq("id", summaryId)
+    .single();
+
+  if (error || !data) {
+    throw new Error(error?.message ?? "Party statement summary not found.");
+  }
+
+  return normalizeSummaryRow(data as unknown as PartyStatementSummaryRow);
+}
+
 export async function markPartyStatementExtractionAttemptStarted({
   attemptCount,
   force,

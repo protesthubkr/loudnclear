@@ -12,6 +12,7 @@ import {
   assertStatementDisplayDecisionSchema,
   buildDisplayDecisionKey,
   getExistingStatementDisplayDecisionKeys,
+  getFailedStatementDisplayDecisionKeys,
   getRequiredStatementDisplayDecisionSupabaseClient,
   upsertStatementDisplayDecision,
 } from "./repository";
@@ -35,6 +36,7 @@ export async function runStatementDisplayDecisionPipeline(
 ): Promise<StatementDisplayDecisionRunResult> {
   const dryRun = options.dryRun ?? false;
   const force = options.force ?? false;
+  const retryFailed = options.retryFailed ?? false;
   const limit = options.limit ?? getStatementDisplayDecisionLimit();
   const windowHours =
     options.windowHours ?? getStatementDisplayDecisionWindowHours();
@@ -55,15 +57,20 @@ export async function runStatementDisplayDecisionPipeline(
   }
 
   const existingKeys =
-    dryRun || force
+    dryRun || force || retryFailed
       ? new Set<string>()
       : await getExistingStatementDisplayDecisionKeys({ rows, supabase });
+  const retryKeys =
+    retryFailed && !dryRun
+      ? await getFailedStatementDisplayDecisionKeys({ rows, supabase })
+      : new Set<string>();
   const result: StatementDisplayDecisionRunResult = {
     dryRun,
     failed: 0,
     force,
     outcomes: [],
     rejected: 0,
+    retryFailed,
     reviewNeeded: 0,
     rowsSeen: rows.length,
     selected: 0,
@@ -72,7 +79,15 @@ export async function runStatementDisplayDecisionPipeline(
   };
 
   for (const row of rows) {
-    if (existingKeys.has(buildDisplayDecisionKey(row.sourceType, row.sourceSummaryId))) {
+    const rowKey = buildDisplayDecisionKey(row.sourceType, row.sourceSummaryId);
+
+    if (retryFailed && !retryKeys.has(rowKey)) {
+      result.skippedExisting += 1;
+      result.outcomes.push(toOutcome(row, "skipped_existing"));
+      continue;
+    }
+
+    if (existingKeys.has(rowKey)) {
       result.skippedExisting += 1;
       result.outcomes.push(toOutcome(row, "skipped_existing"));
       continue;

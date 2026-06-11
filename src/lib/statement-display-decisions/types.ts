@@ -57,6 +57,7 @@ export type StatementDisplayDecisionRunOptions = {
   dryRun?: boolean;
   force?: boolean;
   limit?: number;
+  retryFailed?: boolean;
   sourceType?: StatementSentenceSelectionSourceType;
   summaryId?: string;
   windowHours?: number;
@@ -87,6 +88,7 @@ export type StatementDisplayDecisionRunResult = {
   force: boolean;
   outcomes: StatementDisplayDecisionOutcome[];
   rejected: number;
+  retryFailed: boolean;
   reviewNeeded: number;
   rowsSeen: number;
   selected: number;

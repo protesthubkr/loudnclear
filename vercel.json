@@ -10,20 +10,20 @@
       "schedule": "10 * * * *"
     },
     {
-      "path": "/api/ingest/party-statements",
-      "schedule": "20 * * * *"
+      "path": "/api/ingest/web-statements",
+      "schedule": "15 */3 * * *"
     },
     {
-      "path": "/api/ingest/web-statements",
-      "schedule": "25 * * * *"
+      "path": "/api/ingest/party-statements",
+      "schedule": "20 */2 * * *"
     },
     {
       "path": "/api/ingest/statement-topics",
-      "schedule": "30 * * * *"
+      "schedule": "35 */6 * * *"
     },
     {
       "path": "/api/ingest/statement-display-decisions",
-      "schedule": "40 * * * *"
+      "schedule": "45 * * * *"
     }
   ]
 }

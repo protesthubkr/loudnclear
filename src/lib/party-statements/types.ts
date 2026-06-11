@@ -47,5 +47,6 @@ export type PartyStatementRunOptions = {
   force?: boolean;
   limit?: number;
   source?: PartyStatementSourceKey;
+  summaryId?: string;
   windowHours?: number;
 };

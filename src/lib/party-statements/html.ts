@@ -81,6 +81,13 @@ export function decodeHtmlEntities(value: string) {
     .replace(/&amp;/gi, "&")
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
+    .replace(/&apos;/gi, "'")
+    .replace(/&lsquo;/gi, "\u2018")
+    .replace(/&rsquo;/gi, "\u2019")
+    .replace(/&ldquo;/gi, "\u201c")
+    .replace(/&rdquo;/gi, "\u201d")
+    .replace(/&ndash;/gi, "\u2013")
+    .replace(/&mdash;/gi, "\u2014")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
     .replace(/&#(\d+);/g, (_, codepoint: string) =>

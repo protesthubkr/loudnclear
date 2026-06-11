@@ -242,7 +242,14 @@ function shouldIncludeWebListItem(
     return true;
   }
 
-  return listItem.publishedAt >= cutoffIso;
+  const publishedTime = Date.parse(listItem.publishedAt);
+  const cutoffTime = Date.parse(cutoffIso);
+
+  return (
+    Number.isFinite(publishedTime) &&
+    Number.isFinite(cutoffTime) &&
+    publishedTime >= cutoffTime
+  );
 }
 
 function getDefaultWebStatementWindowHours() {

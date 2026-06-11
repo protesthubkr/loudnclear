@@ -10,10 +10,6 @@ import type {
   StatementSummaryPublicRow,
 } from "./public-feed-types";
 
-type PublicTelegramStatementSourceQuery = PublicStatementSourceQuery & {
-  confirmedTelegramSummaryIds: string[];
-};
-
 const TELEGRAM_PUBLIC_SUMMARY_COLUMNS = [
   "id",
   "organization_name",
@@ -23,22 +19,20 @@ const TELEGRAM_PUBLIC_SUMMARY_COLUMNS = [
 ].join(",");
 
 export async function getPublicTelegramStatementItems({
-  confirmedTelegramSummaryIds,
   fromIso,
   limit,
   toIso,
-}: PublicTelegramStatementSourceQuery) {
+}: PublicStatementSourceQuery) {
   const supabase = getSupabaseAdminClient();
 
-  if (!supabase || confirmedTelegramSummaryIds.length === 0) {
+  if (!supabase) {
     return [] satisfies PublicStatementFeedItem[];
   }
 
   let query = supabase
     .from("telegram_statement_summaries")
     .select(TELEGRAM_PUBLIC_SUMMARY_COLUMNS)
-    .eq("status", "extracted")
-    .in("id", confirmedTelegramSummaryIds);
+    .eq("status", "extracted");
 
   if (fromIso) {
     query = query.gte("message_created_at", fromIso);
@@ -85,11 +79,10 @@ export async function getPublicTelegramStatementItems({
 
 export async function hasPublicTelegramStatementItemsBefore(
   beforeIso: string,
-  confirmedTelegramSummaryIds: string[],
 ) {
   const supabase = getSupabaseAdminClient();
 
-  if (!supabase || confirmedTelegramSummaryIds.length === 0) {
+  if (!supabase) {
     return false;
   }
 
@@ -97,7 +90,6 @@ export async function hasPublicTelegramStatementItemsBefore(
     .from("telegram_statement_summaries")
     .select(TELEGRAM_PUBLIC_SUMMARY_COLUMNS)
     .eq("status", "extracted")
-    .in("id", confirmedTelegramSummaryIds)
     .lt("message_created_at", beforeIso)
     .order("message_created_at", { ascending: false, nullsFirst: false })
     .limit(HAS_MORE_BEFORE_CANDIDATE_LIMIT);
@@ -114,50 +106,4 @@ export async function hasPublicTelegramStatementItemsBefore(
   });
 
   return rows.some((row) => displayDecisions.has(row.id));
-}
-
-export async function getConfirmedTelegramStatementSummaryIds(limit: number) {
-  const supabase = getSupabaseAdminClient();
-
-  if (!supabase) {
-    return [] as string[];
-  }
-
-  const { data: topics, error: topicsError } = await supabase
-    .from("statement_topics")
-    .select("id")
-    .eq("status", "confirmed")
-    .order("window_ended_at", { ascending: false, nullsFirst: false })
-    .limit(Math.max(limit, 100));
-
-  if (topicsError) {
-    throw new Error(topicsError.message);
-  }
-
-  const topicIds = ((topics as Array<{ id: string }> | null) ?? []).map(
-    (topic) => topic.id,
-  );
-
-  if (topicIds.length === 0) {
-    return [] as string[];
-  }
-
-  const { data: links, error: linksError } = await supabase
-    .from("statement_topic_links")
-    .select("source_summary_id")
-    .eq("source_type", "telegram")
-    .in("topic_id", topicIds)
-    .limit(Math.max(limit * 10, 1000));
-
-  if (linksError) {
-    throw new Error(linksError.message);
-  }
-
-  return [
-    ...new Set(
-      ((links as Array<{ source_summary_id: string }> | null) ?? []).map(
-        (link) => link.source_summary_id,
-      ),
-    ),
-  ];
 }
