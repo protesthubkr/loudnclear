@@ -6,13 +6,12 @@ import {
 } from "./extraction-config";
 import {
   TelegramStatementExtractionConfigError,
+  TelegramStatementInconsistentOutputError,
   TelegramStatementExtractionRequestError,
   TelegramStatementSentenceNotFoundError,
   extractTelegramStatementSentence,
 } from "./extractor";
-import { extractTelegramStatementSentenceByRule } from "./rule-extractor";
 import { compactStatementExtractionIfUseful } from "./sentence-compaction";
-import { getStatementSentenceQualityDecision } from "@/lib/statement-quality/extraction-quality";
 import {
   getPendingStatementSummaries,
   getRequiredSupabaseAdminClient,
@@ -137,9 +136,7 @@ async function processPendingStatementSummary(
       sourceUrl: summary.source_url,
       textSnapshot: message.text_snapshot,
     };
-    const rawExtraction =
-      extractTelegramStatementSentenceByRule(extractionInput) ??
-      (await extractTelegramStatementSentence(extractionInput));
+    const rawExtraction = await extractTelegramStatementSentence(extractionInput);
     const extraction = await compactStatementExtractionIfUseful({
       extraction: rawExtraction,
       textSnapshot: message.text_snapshot,
@@ -148,23 +145,6 @@ async function processPendingStatementSummary(
     if (!extraction.isTargetDocument || !extraction.coreSentence.trim()) {
       await markStatementSummarySkipped({
         errorMessage: extraction.reason || "not_target_document",
-        model: extraction.model,
-        promptVersion: extraction.promptVersion,
-        summaryId: summary.id,
-        supabase,
-      });
-      return "skipped" as const;
-    }
-
-    const quality = getStatementSentenceQualityDecision({
-      confidence: extraction.confidence,
-      coreSentence: extraction.coreSentence,
-      documentType: extraction.documentType,
-    });
-
-    if (!quality.publishable) {
-      await markStatementSummarySkipped({
-        errorMessage: `quality_gate:${quality.reason}`,
         model: extraction.model,
         promptVersion: extraction.promptVersion,
         summaryId: summary.id,
@@ -226,6 +206,10 @@ function getExtractionErrorMessage(error: unknown) {
 
   if (error instanceof TelegramStatementSentenceNotFoundError) {
     return "core_sentence_not_found";
+  }
+
+  if (error instanceof TelegramStatementInconsistentOutputError) {
+    return `model_output_inconsistent:${error.reason}`;
   }
 
   if (error instanceof TelegramStatementExtractionRequestError) {

@@ -52,21 +52,38 @@ export async function runPartyStatementSource({
       await upsertPartyStatementSource({ source, supabase });
     }
 
-    const parsedListItems = (
-      await Promise.all(
-        getSourceListUrls(source, { cutoffIso, limit }).map(async (listUrl) => {
-          const listHtml = await fetchPartyStatementHtml({
-            allowInsecureTls: source.allowInsecureTls,
-            url: listUrl,
-          });
+    const listUrls = getSourceListUrls(source, { cutoffIso, limit });
+    const listPageResults = await Promise.allSettled(
+      listUrls.map(async (listUrl) => {
+        const listHtml = await fetchPartyStatementHtml({
+          allowInsecureTls: source.allowInsecureTls,
+          url: listUrl,
+        });
 
-          return source.parseList(listHtml, listUrl);
-        }),
+        return source.parseList(listHtml, listUrl);
+      }),
+    );
+    const listPageFailures = listPageResults.filter(isRejectedPromiseResult);
+    const partialListErrorMessage = getPartialListErrorMessage({
+      failures: listPageFailures,
+      total: listUrls.length,
+    });
+    const parsedListItems = listPageResults
+      .flatMap((listPageResult) =>
+        listPageResult.status === "fulfilled" ? listPageResult.value : [],
       )
-    )
       .flat()
       .filter(dedupePartyListItem())
       .sort(comparePartyListItemsByDateDesc);
+
+    if (parsedListItems.length === 0 && listPageFailures.length > 0) {
+      throw listPageFailures[0].reason;
+    }
+
+    if (partialListErrorMessage) {
+      result.failed += listPageFailures.length;
+    }
+
     const listItems = parsedListItems
       .filter((listItem) => shouldIncludePartyListItem(listItem, cutoffIso))
       .slice(0, limit);
@@ -132,6 +149,7 @@ export async function runPartyStatementSource({
 
     if (supabase) {
       await markPartyStatementSourceScanFinished({
+        errorMessage: partialListErrorMessage ?? undefined,
         sourceKey: source.sourceKey,
         supabase,
       });
@@ -155,6 +173,28 @@ export async function runPartyStatementSource({
   }
 
   return result;
+}
+
+function isRejectedPromiseResult<T>(
+  result: PromiseSettledResult<T>,
+): result is PromiseRejectedResult {
+  return result.status === "rejected";
+}
+
+function getPartialListErrorMessage({
+  failures,
+  total,
+}: {
+  failures: PromiseRejectedResult[];
+  total: number;
+}) {
+  if (failures.length === 0 || failures.length === total) {
+    return null;
+  }
+
+  return `partial_list_fetch_failed:${failures.length}/${total}:${getPartyStatementErrorMessage(
+    failures[0].reason,
+  )}`;
 }
 
 function getSourceListUrls(

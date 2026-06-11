@@ -6,8 +6,10 @@ import {
   getStatementPromptCacheRetention,
 } from "./extraction-config";
 import { buildTelegramStatementExtractionPrompt } from "./extraction-prompt";
+import { buildStatementExtractionCandidates } from "./extraction-candidates";
 import {
-  TELEGRAM_STATEMENT_EXTRACTION_SCHEMA,
+  TELEGRAM_STATEMENT_EXTRACTION_PROMPT_VERSION,
+  buildTelegramStatementExtractionSchema,
 } from "./extraction-schema";
 import { TelegramStatementExtractionRequestError } from "./extractor-errors";
 import type { ExtractTelegramStatementSentenceInput } from "./extractor-types";
@@ -25,6 +27,9 @@ export function buildTelegramStatementExtractionRequestBody(
     ...input,
     textSnapshot: truncateStatementTextForModel(input.textSnapshot),
   };
+  const candidateIds = buildStatementExtractionCandidates(modelInput.textSnapshot).map(
+    (candidate) => candidate.id,
+  );
 
   return {
     model,
@@ -45,7 +50,7 @@ export function buildTelegramStatementExtractionRequestBody(
         type: "json_schema",
         name: "telegram_statement_sentence_extraction",
         strict: true,
-        schema: TELEGRAM_STATEMENT_EXTRACTION_SCHEMA,
+        schema: buildTelegramStatementExtractionSchema(candidateIds),
       },
     },
     ...(promptCacheKey ? { prompt_cache_key: promptCacheKey } : {}),
@@ -61,11 +66,25 @@ function getScopedStatementPromptCacheKey(
 ) {
   const promptCacheKey = getStatementPromptCacheKey();
 
-  if (!promptCacheKey || !input.extractionGuidance) {
-    return promptCacheKey;
+  if (!promptCacheKey) {
+    return null;
   }
 
-  return `${promptCacheKey}_${input.extractionGuidance}`;
+  const guidanceKey = getExtractionGuidanceCacheKey(input.extractionGuidance);
+
+  return [TELEGRAM_STATEMENT_EXTRACTION_PROMPT_VERSION, guidanceKey]
+    .filter(Boolean)
+    .join("_");
+}
+
+function getExtractionGuidanceCacheKey(
+  guidance: ExtractTelegramStatementSentenceInput["extractionGuidance"],
+) {
+  if (guidance === "people_power_strong_expression") {
+    return "pp_strong";
+  }
+
+  return null;
 }
 
 export async function requestTelegramStatementExtraction(

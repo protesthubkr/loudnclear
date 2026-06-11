@@ -21,13 +21,20 @@ export async function fetchPartyStatementHtml({
     });
 
     if (!response.ok) {
-      throw new Error(`Fetch failed with status ${response.status}`);
+      throw new Error(`Fetch ${url} failed with status ${response.status}`);
     }
 
     return response.text();
   } catch (error) {
     if (!allowInsecureTls || !isTlsCertificateError(error)) {
-      throw error;
+      if (
+        error instanceof Error &&
+        error.message.startsWith(`Fetch ${url} failed`)
+      ) {
+        throw error;
+      }
+
+      throw new Error(`Fetch ${url} failed: ${getFetchErrorMessage(error)}`);
     }
 
     return fetchHtmlWithInsecureTls(url);
@@ -177,7 +184,9 @@ function fetchHtmlWithInsecureTls(url: string) {
 
         if (!response.statusCode || response.statusCode >= 400) {
           reject(
-            new Error(`Fetch failed with status ${response.statusCode ?? 0}`),
+            new Error(
+              `Fetch ${url} failed with status ${response.statusCode ?? 0}`,
+            ),
           );
           response.resume();
           return;
@@ -197,4 +206,25 @@ function fetchHtmlWithInsecureTls(url: string) {
     request.on("error", reject);
     request.end();
   });
+}
+
+function getFetchErrorMessage(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return String(error);
+  }
+
+  if ("cause" in error && error.cause && typeof error.cause === "object") {
+    const code = "code" in error.cause ? error.cause.code : null;
+    const causeName = "name" in error.cause ? error.cause.name : null;
+
+    if (code || causeName) {
+      return [causeName, code].filter(Boolean).join(":");
+    }
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
 }

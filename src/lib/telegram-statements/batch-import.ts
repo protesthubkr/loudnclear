@@ -1,6 +1,5 @@
 import "server-only";
 
-import { getStatementSentenceQualityDecision } from "@/lib/statement-quality/extraction-quality";
 import { getBatchErrorMessage } from "./batch-errors";
 import { getStatementExtractionModel } from "./extraction-config";
 import {
@@ -98,23 +97,6 @@ export async function importBatchResultLine(line: string) {
     if (!extraction.isTargetDocument || !extraction.coreSentence.trim()) {
       await markStatementSummarySkipped({
         errorMessage: extraction.reason || "not_target_document",
-        model: extraction.model,
-        promptVersion: extraction.promptVersion,
-        summaryId,
-        supabase,
-      });
-      return "skipped" as const;
-    }
-
-    const quality = getStatementSentenceQualityDecision({
-      confidence: extraction.confidence,
-      coreSentence: extraction.coreSentence,
-      documentType: extraction.documentType,
-    });
-
-    if (!quality.publishable) {
-      await markStatementSummarySkipped({
-        errorMessage: `quality_gate:${quality.reason}`,
         model: extraction.model,
         promptVersion: extraction.promptVersion,
         summaryId,

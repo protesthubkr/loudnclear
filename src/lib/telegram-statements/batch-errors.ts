@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   TelegramStatementExtractionConfigError,
+  TelegramStatementInconsistentOutputError,
   TelegramStatementExtractionRequestError,
   TelegramStatementSentenceNotFoundError,
 } from "./extractor";
@@ -13,6 +14,10 @@ export function getBatchErrorMessage(error: unknown) {
 
   if (error instanceof TelegramStatementSentenceNotFoundError) {
     return "core_sentence_not_found";
+  }
+
+  if (error instanceof TelegramStatementInconsistentOutputError) {
+    return `model_output_inconsistent:${error.reason}`;
   }
 
   if (error instanceof TelegramStatementExtractionRequestError) {

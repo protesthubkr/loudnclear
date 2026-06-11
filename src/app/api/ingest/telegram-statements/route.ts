@@ -48,14 +48,17 @@ function isAuthorized(request: NextRequest) {
 
 function parseRunOptions(request: NextRequest): TelegramStatementRunOptions {
   const searchParams = request.nextUrl.searchParams;
+  const windowHours = parseWindowHours(searchParams.get("windowHours"));
 
   return {
-    backfill: parseOptionalBoolean(searchParams.get("backfill")) ?? false,
+    backfill:
+      parseOptionalBoolean(searchParams.get("backfill")) ??
+      Boolean(windowHours),
     channelUsername:
       normalizeChannelUsername(searchParams.get("channel")) ?? undefined,
     dryRun: parseOptionalBoolean(searchParams.get("dryRun")) ?? false,
     maxPagesPerChannel: parseMaxPages(searchParams.get("maxPages")),
-    windowHours: parseWindowHours(searchParams.get("windowHours")),
+    windowHours,
   };
 }
 

@@ -1,14 +1,13 @@
 import "server-only";
 
-import { getStatementSentenceQualityDecision } from "@/lib/statement-quality/extraction-quality";
 import { getStatementExtractionMaxAttempts } from "@/lib/telegram-statements/extraction-config";
 import {
   extractTelegramStatementSentence,
   TelegramStatementExtractionConfigError,
+  TelegramStatementInconsistentOutputError,
   TelegramStatementExtractionRequestError,
   TelegramStatementSentenceNotFoundError,
 } from "@/lib/telegram-statements/extractor";
-import { extractTelegramStatementSentenceByRule } from "@/lib/telegram-statements/rule-extractor";
 import { compactStatementExtractionIfUseful } from "@/lib/telegram-statements/sentence-compaction";
 import {
   getPartyStatementDocumentText,
@@ -63,11 +62,7 @@ export async function processPartyStatementSummary(
       sourceUrl: summary.source_url,
       textSnapshot,
     };
-    const ruleExtraction = extractionInput.extractionGuidance
-      ? null
-      : extractTelegramStatementSentenceByRule(extractionInput);
-    const rawExtraction =
-      ruleExtraction ?? (await extractTelegramStatementSentence(extractionInput));
+    const rawExtraction = await extractTelegramStatementSentence(extractionInput);
     const extraction = await compactStatementExtractionIfUseful({
       extraction: rawExtraction,
       textSnapshot,
@@ -93,25 +88,6 @@ export async function processPartyStatementSummary(
         supabase,
       });
       return "skipped";
-    }
-
-    if (!shouldBypassPartyStatementQualityGate(summary)) {
-      const quality = getStatementSentenceQualityDecision({
-        confidence: extraction.confidence,
-        coreSentence: extraction.coreSentence,
-        documentType: extraction.documentType,
-      });
-
-      if (!quality.publishable) {
-        await markPartyStatementSummarySkipped({
-          errorMessage: `quality_gate:${quality.reason}`,
-          model: extraction.model,
-          promptVersion: extraction.promptVersion,
-          summaryId: summary.id,
-          supabase,
-        });
-        return "skipped";
-      }
     }
 
     if (
@@ -154,12 +130,6 @@ function getPartyStatementExtractionGuidance(summary: PartyStatementSummaryRow) 
   return undefined;
 }
 
-function shouldBypassPartyStatementQualityGate(
-  summary: PartyStatementSummaryRow,
-) {
-  return summary.source_key === "people_power_party";
-}
-
 function isClearlyInvalidPartyCoreSentence(coreSentence: string) {
   return /^(국민의힘\s*)?([가-힣]+\s*){0,3}(중앙선대위\s*)?(원내수석대변인|수석대변인|대변인|부대변인|공보단장)\s*[가-힣\s]{2,10}$/.test(
     coreSentence.replace(/\s+/g, " ").trim(),
@@ -173,6 +143,10 @@ export function getPartyStatementErrorMessage(error: unknown) {
 
   if (error instanceof TelegramStatementSentenceNotFoundError) {
     return "core_sentence_not_found";
+  }
+
+  if (error instanceof TelegramStatementInconsistentOutputError) {
+    return `model_output_inconsistent:${error.reason}`;
   }
 
   if (error instanceof TelegramStatementExtractionRequestError) {

@@ -18,3 +18,9 @@ export class TelegramStatementSentenceNotFoundError extends Error {
     super("Extracted core sentence was not found in source text.");
   }
 }
+
+export class TelegramStatementInconsistentOutputError extends Error {
+  constructor(readonly reason: string) {
+    super(`Statement extraction output is inconsistent: ${reason}`);
+  }
+}

@@ -1,18 +1,14 @@
 import "server-only";
 
-import { getStatementSentenceQualityDecision } from "@/lib/statement-quality/extraction-quality";
 import { BATCH_ENDPOINT, type PrepareStatementForBatchParams } from "./batch-types";
 import { getStatementExtractionMaxAttempts } from "./extraction-config";
 import { buildTelegramStatementExtractionRequestBody } from "./extractor";
 import {
   getRequiredSupabaseAdminClient,
   getTelegramStatementMessageText,
-  markStatementExtractionAttemptStarted,
-  markStatementSummaryExtracted,
   markStatementSummaryFailed,
   markStatementSummarySkipped,
 } from "./repository";
-import { extractTelegramStatementSentenceByRule } from "./rule-extractor";
 
 export async function prepareStatementForBatch({
   dryRun,
@@ -61,55 +57,6 @@ export async function prepareStatementForBatch({
     sourceUrl: summary.source_url,
     textSnapshot: message.text_snapshot,
   };
-  const ruleExtraction = extractTelegramStatementSentenceByRule(extractionInput);
-
-  if (ruleExtraction) {
-    const quality = getStatementSentenceQualityDecision({
-      confidence: ruleExtraction.confidence,
-      coreSentence: ruleExtraction.coreSentence,
-      documentType: ruleExtraction.documentType,
-    });
-
-    if (!dryRun) {
-      await markStatementExtractionAttemptStarted({
-        attemptCount: summary.attempt_count,
-        summaryId: summary.id,
-        supabase,
-      });
-
-      if (!quality.publishable) {
-        await markStatementSummarySkipped({
-          errorMessage: `quality_gate:${quality.reason}`,
-          model: ruleExtraction.model,
-          promptVersion: ruleExtraction.promptVersion,
-          summaryId: summary.id,
-          supabase,
-        });
-        result.skipped += 1;
-        return null;
-      }
-
-      await markStatementSummaryExtracted({
-        confidence: ruleExtraction.confidence,
-        coreSentence: ruleExtraction.coreSentence,
-        coreSentenceEnd: ruleExtraction.coreSentenceEnd ?? 0,
-        coreSentenceStart: ruleExtraction.coreSentenceStart ?? 0,
-        documentType: ruleExtraction.documentType,
-        model: ruleExtraction.model,
-        promptVersion: ruleExtraction.promptVersion,
-        reason: ruleExtraction.reason,
-        summaryId: summary.id,
-        supabase,
-      });
-    }
-
-    if (quality.publishable) {
-      result.ruleExtracted += 1;
-    } else {
-      result.skipped += 1;
-    }
-    return null;
-  }
 
   const customId = `summary:${summary.id}`;
   lines.push(
