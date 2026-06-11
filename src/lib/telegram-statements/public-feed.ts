@@ -12,6 +12,11 @@ import {
   getPublicTelegramStatementItems,
   hasPublicTelegramStatementItemsBefore,
 } from "./public-feed-telegram";
+import {
+  getConfirmedXStatementSummaryIds,
+  getPublicXStatementItems,
+  hasPublicXStatementItemsBefore,
+} from "./public-feed-x";
 import type { PublicStatementFeedItem } from "./public-feed-types";
 
 type PublicStatementFeedQuery = {
@@ -81,18 +86,32 @@ async function loadPublicStatementFeedWindow(
 
   const confirmedTelegramSummaryIdsPromise =
     getConfirmedTelegramStatementSummaryIds(query.limit);
+  const confirmedXSummaryIdsPromise = getConfirmedXStatementSummaryIds(
+    query.limit,
+  );
   const partyItemsPromise = getPublicPartyStatementItems(query);
   const hasPartyItemsBeforePromise = query.fromIso
     ? hasPublicPartyStatementItemsBefore(query.fromIso)
     : Promise.resolve(false);
   const confirmedTelegramSummaryIds = await confirmedTelegramSummaryIdsPromise;
-  const [telegramItems, partyItems, hasTelegramItemsBefore, hasPartyItemsBefore] =
-    await Promise.all([
+  const confirmedXSummaryIds = await confirmedXSummaryIdsPromise;
+  const [
+    telegramItems,
+    partyItems,
+    xItems,
+    hasTelegramItemsBefore,
+    hasPartyItemsBefore,
+    hasXItemsBefore,
+  ] = await Promise.all([
       getPublicTelegramStatementItems({
         ...query,
         confirmedTelegramSummaryIds,
       }),
       partyItemsPromise,
+      getPublicXStatementItems({
+        ...query,
+        confirmedXSummaryIds,
+      }),
       query.fromIso
         ? hasPublicTelegramStatementItemsBefore(
             query.fromIso,
@@ -100,11 +119,20 @@ async function loadPublicStatementFeedWindow(
           )
         : Promise.resolve(false),
       hasPartyItemsBeforePromise,
+      query.fromIso
+        ? hasPublicXStatementItemsBefore(query.fromIso, confirmedXSummaryIds)
+        : Promise.resolve(false),
     ]);
 
   return {
-    hasMoreBefore: hasTelegramItemsBefore || hasPartyItemsBefore,
-    items: mergePublicStatementFeedItems(telegramItems, partyItems, query.limit),
+    hasMoreBefore:
+      hasTelegramItemsBefore || hasPartyItemsBefore || hasXItemsBefore,
+    items: mergePublicStatementFeedItems(
+      telegramItems,
+      partyItems,
+      xItems,
+      query.limit,
+    ),
   };
 }
 
@@ -121,9 +149,10 @@ function normalizePublicStatementFeedQuery(
 function mergePublicStatementFeedItems(
   telegramItems: PublicStatementFeedItem[],
   partyItems: PublicStatementFeedItem[],
+  xItems: PublicStatementFeedItem[],
   limit: number,
 ) {
-  return [...telegramItems, ...partyItems]
+  return [...telegramItems, ...partyItems, ...xItems]
     .sort(compareStatementItemsNewestFirst)
     .slice(0, limit)
     .sort(compareStatementItemsOldestFirst);

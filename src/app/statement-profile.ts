@@ -66,6 +66,26 @@ const STATEMENT_PROFILES = [
     logoSrc: "/metal-logo.jpg",
     patterns: ["금속노조", "kmwunews"],
   },
+  {
+    label: "환경운동연합",
+    logoSrc: "/kfem-logo.jpg",
+    patterns: ["환경운동연합", "kfem"],
+  },
+  {
+    label: "차제연",
+    logoSrc: "/equalact-logo.jpg",
+    patterns: ["차제연", "차별금지법제정연대", "equalact"],
+  },
+  {
+    label: "여성연합",
+    logoSrc: "/kwau-logo.jpg",
+    patterns: ["여성연합", "한국여성단체연합", "kwau38"],
+  },
+  {
+    label: "무지개행동",
+    logoSrc: "/rainbowact-logo.jpg",
+    patterns: ["무지개행동", "rainbowactionkr"],
+  },
 ] satisfies Array<StatementProfile & { patterns: string[] }>;
 
 const PARTY_STATEMENT_LOGO_SRCS = new Set([

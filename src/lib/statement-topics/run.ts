@@ -5,12 +5,13 @@ import {
   getStatementTopicPartyThreshold,
   getStatementTopicWindowHours,
 } from "./config";
-import { clusterTelegramSummaries, toConfirmedTopic } from "./clustering";
-import { embedPartyTopicRows, embedTelegramTopicRows } from "./embedding-prep";
+import { clusterPrimarySummaries, toConfirmedTopic } from "./clustering";
+import { embedPartyTopicRows, embedPrimaryTopicRows } from "./embedding-prep";
 import { matchPartySummariesToTopics } from "./party-matching";
 import {
   getRecentPartyTopicSummaries,
   getRecentTelegramTopicSummaries,
+  getRecentXTopicSummaries,
   getRequiredStatementTopicSupabaseClient,
   clearLowConfidencePartyTopicMatches,
   markExpiredStatementTopics,
@@ -19,7 +20,7 @@ import type {
   StatementTopicRunOptions,
   StatementTopicRunResult,
 } from "./run-types";
-import { saveConfirmedTelegramTopics } from "./topic-persistence";
+import { saveConfirmedPrimaryTopics } from "./topic-persistence";
 import type { ConfirmedTopic } from "./types";
 
 export { getStatementTopicErrorMessage } from "./run-error";
@@ -40,6 +41,14 @@ export async function runStatementTopicMatching(
     limit,
     supabase,
   });
+  const xRows = await getRecentXTopicSummaries({
+    cutoffIso,
+    limit,
+    supabase,
+  });
+  const primaryRows = [...telegramRows, ...xRows].sort(
+    comparePrimaryRowsByDisplayAtDesc,
+  );
   const partyRows = await getRecentPartyTopicSummaries({
     cutoffIso,
     limit,
@@ -51,11 +60,13 @@ export async function runStatementTopicMatching(
     embeddingsCreated: 0,
     matchedPartyStatements: 0,
     partyCandidatesSeen: partyRows.length,
+    primaryClusters: 0,
+    primarySummariesSeen: primaryRows.length,
     stalePartyMatchesCleared: 0,
     partyUnmatched: 0,
-    telegramClusters: 0,
     telegramSummariesSeen: telegramRows.length,
     windowHours,
+    xSummariesSeen: xRows.length,
   };
 
   if (dryRun) {
@@ -67,24 +78,24 @@ export async function runStatementTopicMatching(
     supabase,
   });
 
-  if (telegramRows.length === 0) {
+  if (primaryRows.length === 0) {
     return result;
   }
 
   await markExpiredStatementTopics({ cutoffIso, supabase });
 
-  const telegramEmbedded = await embedTelegramTopicRows(telegramRows);
-  result.embeddingsCreated += telegramEmbedded.created;
+  const primaryEmbedded = await embedPrimaryTopicRows(primaryRows);
+  result.embeddingsCreated += primaryEmbedded.created;
 
-  const clusters = clusterTelegramSummaries(telegramEmbedded.rows);
+  const clusters = clusterPrimarySummaries(primaryEmbedded.rows);
   const confirmedTopics = clusters
     .map(toConfirmedTopic)
     .filter((topic): topic is ConfirmedTopic => Boolean(topic));
 
-  result.telegramClusters = clusters.length;
+  result.primaryClusters = clusters.length;
   result.confirmedTopics = confirmedTopics.length;
 
-  const activeTopics = await saveConfirmedTelegramTopics({
+  const activeTopics = await saveConfirmedPrimaryTopics({
     confirmedTopics,
     supabase,
   });
@@ -106,4 +117,14 @@ export async function runStatementTopicMatching(
   result.partyUnmatched += partyMatching.partyUnmatched;
 
   return result;
+}
+
+function comparePrimaryRowsByDisplayAtDesc(
+  left: { display_at: string | null },
+  right: { display_at: string | null },
+) {
+  const leftTime = left.display_at ? Date.parse(left.display_at) : 0;
+  const rightTime = right.display_at ? Date.parse(right.display_at) : 0;
+
+  return rightTime - leftTime;
 }

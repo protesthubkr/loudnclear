@@ -3,29 +3,55 @@ import "server-only";
 import { ensureStatementTopicEmbeddings } from "./embedding-cache";
 import type {
   PartyTopicSummaryRow,
-  TelegramTopicSummaryRow,
+  PrimaryTopicSummaryRow,
 } from "./repository-types";
-import type { EmbeddedPartySummary, EmbeddedTelegramSummary } from "./types";
+import type { EmbeddedPartySummary, EmbeddedPrimarySummary } from "./types";
 
-export async function embedTelegramTopicRows(
-  rows: TelegramTopicSummaryRow[],
-) {
-  const embedded = await ensureStatementTopicEmbeddings({
-    rows: rows.map((row) => ({
-      coreSentence: row.core_sentence,
-      fullText: row.text_snapshot,
-      id: row.id,
-      organizationName: row.organization_name,
-      sourceType: "telegram" as const,
-      title: null,
-    })),
-    sourceType: "telegram",
-  });
+export async function embedPrimaryTopicRows(rows: PrimaryTopicSummaryRow[]) {
+  const groupedRows = new Map<
+    PrimaryTopicSummaryRow["source_type"],
+    PrimaryTopicSummaryRow[]
+  >();
+
+  for (const row of rows) {
+    groupedRows.set(row.source_type, [
+      ...(groupedRows.get(row.source_type) ?? []),
+      row,
+    ]);
+  }
+  const embeddedById = new Map<
+    string,
+    {
+      embedding: number[];
+      text: string;
+    }
+  >();
+  let created = 0;
+
+  for (const [sourceType, sourceRows] of groupedRows) {
+    const embedded = await ensureStatementTopicEmbeddings({
+      rows: sourceRows.map((row) => ({
+        coreSentence: row.core_sentence,
+        fullText: row.text_snapshot,
+        id: row.id,
+        organizationName: row.organization_name,
+        sourceType,
+        title: row.title,
+      })),
+      sourceType,
+    });
+
+    created += embedded.created;
+
+    for (const [id, embedding] of embedded.embeddings) {
+      embeddedById.set(id, embedding);
+    }
+  }
 
   return {
-    created: embedded.created,
-    rows: rows.flatMap((row): EmbeddedTelegramSummary[] => {
-      const embedding = embedded.embeddings.get(row.id);
+    created,
+    rows: rows.flatMap((row): EmbeddedPrimarySummary[] => {
+      const embedding = embeddedById.get(row.id);
 
       if (!embedding) {
         return [];

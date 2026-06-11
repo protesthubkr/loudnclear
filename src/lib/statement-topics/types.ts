@@ -1,9 +1,9 @@
 import type {
   PartyTopicSummaryRow,
-  TelegramTopicSummaryRow,
+  PrimaryTopicSummaryRow,
 } from "./repository-types";
 
-export type EmbeddedTelegramSummary = TelegramTopicSummaryRow & {
+export type EmbeddedPrimarySummary = PrimaryTopicSummaryRow & {
   embedding: number[];
   embeddingText: string;
 };
@@ -15,7 +15,7 @@ export type EmbeddedPartySummary = PartyTopicSummaryRow & {
 
 export type TopicCluster = {
   centroid: number[];
-  members: EmbeddedTelegramSummary[];
+  members: EmbeddedPrimarySummary[];
 };
 
 export type ConfirmedTopic = TopicCluster & {

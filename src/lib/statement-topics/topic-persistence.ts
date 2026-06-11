@@ -10,7 +10,7 @@ import type { ConfirmedTopic } from "./types";
 
 export type SavedConfirmedTopic = ConfirmedTopic & { id: string };
 
-export async function saveConfirmedTelegramTopics({
+export async function saveConfirmedPrimaryTopics({
   confirmedTopics,
   supabase,
 }: {
@@ -21,11 +21,11 @@ export async function saveConfirmedTelegramTopics({
     confirmedTopics.map(async (topic) => {
       const representative = topic.members[0];
       const windowStartedAt = topic.members
-        .map((member) => member.message_created_at)
+        .map((member) => member.display_at)
         .filter(Boolean)
         .sort()[0];
       const windowEndedAt = topic.members
-        .map((member) => member.message_created_at)
+        .map((member) => member.display_at)
         .filter(Boolean)
         .sort()
         .at(-1);
@@ -41,6 +41,9 @@ export async function saveConfirmedTelegramTopics({
           embeddingModel: getStatementTopicEmbeddingSpec().model,
           metadata: {
             memberSummaryIds: topic.members.map((member) => member.id),
+            memberSourceTypes: [
+              ...new Set(topic.members.map((member) => member.source_type)),
+            ],
           },
           representativeSourceUrl: representative.source_url,
           representativeSummaryId: representative.id,
@@ -56,9 +59,9 @@ export async function saveConfirmedTelegramTopics({
       await upsertStatementTopicLinks({
         links: topic.members.map((member) => ({
           similarity: cosineSimilarity(topic.centroid, member.embedding),
-          sourceKey: member.channel_username,
+          sourceKey: member.source_key,
           sourceSummaryId: member.id,
-          sourceType: "telegram" as const,
+          sourceType: member.source_type,
           sourceUrl: member.source_url,
           topicId: row.id,
         })),

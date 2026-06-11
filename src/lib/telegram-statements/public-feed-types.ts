@@ -6,7 +6,7 @@ export type PublicStatementFeedItem = {
   messageCreatedAt: string | null;
   organizationName: string;
   sourceUrl: string;
-  sourceType: "party" | "telegram";
+  sourceType: "party" | "telegram" | "x";
 };
 
 export type StatementSummaryPublicRow = {
@@ -30,4 +30,14 @@ export type PartyStatementSummaryPublicRow = {
   source_key: string | null;
   source_url: string;
   topic_gate_status: string;
+};
+
+export type XStatementSummaryPublicRow = {
+  core_sentence: string | null;
+  document_type: string;
+  extraction_confidence: number | null;
+  id: string;
+  organization_name: string;
+  posted_at: string | null;
+  source_url: string;
 };

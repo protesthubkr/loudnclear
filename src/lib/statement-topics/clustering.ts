@@ -4,11 +4,11 @@ import { averageEmbeddings, cosineSimilarity } from "./embedding";
 import { hasTopicLexicalSupportWithCluster } from "./lexical-support";
 import type {
   ConfirmedTopic,
-  EmbeddedTelegramSummary,
+  EmbeddedPrimarySummary,
   TopicCluster,
 } from "./types";
 
-export function clusterTelegramSummaries(rows: EmbeddedTelegramSummary[]) {
+export function clusterPrimarySummaries(rows: EmbeddedPrimarySummary[]) {
   const threshold = getStatementTopicTelegramThreshold();
   const clusters: TopicCluster[] = [];
 
@@ -38,7 +38,7 @@ export function clusterTelegramSummaries(rows: EmbeddedTelegramSummary[]) {
 
 export function toConfirmedTopic(cluster: TopicCluster) {
   const sourceCount = new Set(
-    cluster.members.map((member) => member.channel_username),
+    cluster.members.map((member) => `${member.source_type}:${member.source_key}`),
   ).size;
 
   if (sourceCount < 2) {
@@ -79,11 +79,11 @@ function findBestCluster(embedding: number[], clusters: TopicCluster[]) {
     .sort((first, second) => second.similarity - first.similarity)[0];
 }
 
-function buildTopicKey(members: EmbeddedTelegramSummary[]) {
+function buildTopicKey(members: EmbeddedPrimarySummary[]) {
   const ids = members
-    .map((member) => member.id)
+    .map((member) => `${member.source_type}:${member.id}`)
     .sort()
     .join(":");
 
-  return `tg:${createHash("sha256").update(ids).digest("hex").slice(0, 24)}`;
+  return `primary:${createHash("sha256").update(ids).digest("hex").slice(0, 24)}`;
 }

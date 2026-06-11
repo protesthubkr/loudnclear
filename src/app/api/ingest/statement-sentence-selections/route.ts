@@ -77,7 +77,7 @@ function parseSourceType(
 
   const normalized = value.trim();
 
-  if (normalized === "telegram" || normalized === "party") {
+  if (normalized === "telegram" || normalized === "party" || normalized === "x") {
     return normalized;
   }
 

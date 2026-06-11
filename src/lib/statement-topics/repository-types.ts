@@ -1,4 +1,5 @@
-export type TopicSourceType = "party" | "telegram";
+export type TopicSourceType = "party" | "telegram" | "x";
+export type PrimaryTopicSourceType = "telegram" | "x";
 
 export type TelegramTopicSummaryRow = {
   channel_username: string;
@@ -11,6 +12,34 @@ export type TelegramTopicSummaryRow = {
   organization_name: string;
   source_url: string;
   text_snapshot: string;
+};
+
+export type XTopicSummaryRow = {
+  core_sentence: string;
+  document_type: string;
+  extraction_confidence: number | null;
+  id: string;
+  organization_name: string;
+  post_id: string;
+  posted_at: string | null;
+  source_key: string;
+  source_url: string;
+  text_snapshot: string;
+  x_post_id: string;
+};
+
+export type PrimaryTopicSummaryRow = {
+  core_sentence: string;
+  display_at: string | null;
+  document_type: string;
+  extraction_confidence: number | null;
+  id: string;
+  organization_name: string;
+  source_key: string;
+  source_type: PrimaryTopicSourceType;
+  source_url: string;
+  text_snapshot: string;
+  title: string | null;
 };
 
 export type PartyTopicSummaryRow = {

@@ -8,6 +8,7 @@ import { StatementFeedShell } from "./statement-feed-shell";
 import { SITE_DESCRIPTION, SITE_NAME } from "./site";
 
 export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: SITE_NAME,
