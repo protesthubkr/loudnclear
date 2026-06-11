@@ -1,4 +1,5 @@
 import { isStatementSentencePublishable } from "@/lib/statement-quality/extraction-quality";
+import { getStatementTopicPartyThreshold } from "@/lib/statement-topics/config";
 import { getSupabaseClient } from "@/lib/supabase";
 import {
   HAS_MORE_BEFORE_CANDIDATE_LIMIT,
@@ -39,7 +40,8 @@ export async function getPublicPartyStatementItems({
     .from("party_statement_summaries")
     .select(PARTY_PUBLIC_SUMMARY_COLUMNS)
     .eq("status", "extracted")
-    .eq("topic_gate_status", "matched");
+    .eq("topic_gate_status", "matched")
+    .gte("topic_match_confidence", getStatementTopicPartyThreshold());
 
   if (fromIso) {
     query = query.gte("published_at", fromIso);
@@ -74,6 +76,7 @@ export async function hasPublicPartyStatementItemsBefore(beforeIso: string) {
     .select(PARTY_PUBLIC_SUMMARY_COLUMNS)
     .eq("status", "extracted")
     .eq("topic_gate_status", "matched")
+    .gte("topic_match_confidence", getStatementTopicPartyThreshold())
     .not("core_sentence", "is", null)
     .lt("published_at", beforeIso)
     .order("published_at", { ascending: false, nullsFirst: false })

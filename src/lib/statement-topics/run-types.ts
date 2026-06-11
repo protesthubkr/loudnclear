@@ -10,6 +10,7 @@ export type StatementTopicRunResult = {
   embeddingsCreated: number;
   matchedPartyStatements: number;
   partyCandidatesSeen: number;
+  stalePartyMatchesCleared: number;
   partyUnmatched: number;
   telegramClusters: number;
   telegramSummariesSeen: number;

@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   getStatementTopicRunLimit,
+  getStatementTopicPartyThreshold,
   getStatementTopicWindowHours,
 } from "./config";
 import { clusterTelegramSummaries, toConfirmedTopic } from "./clustering";
@@ -11,6 +12,7 @@ import {
   getRecentPartyTopicSummaries,
   getRecentTelegramTopicSummaries,
   getRequiredStatementTopicSupabaseClient,
+  clearLowConfidencePartyTopicMatches,
   markExpiredStatementTopics,
 } from "./repository";
 import type {
@@ -49,13 +51,23 @@ export async function runStatementTopicMatching(
     embeddingsCreated: 0,
     matchedPartyStatements: 0,
     partyCandidatesSeen: partyRows.length,
+    stalePartyMatchesCleared: 0,
     partyUnmatched: 0,
     telegramClusters: 0,
     telegramSummariesSeen: telegramRows.length,
     windowHours,
   };
 
-  if (dryRun || telegramRows.length === 0) {
+  if (dryRun) {
+    return result;
+  }
+
+  result.stalePartyMatchesCleared = await clearLowConfidencePartyTopicMatches({
+    minimumConfidence: getStatementTopicPartyThreshold(),
+    supabase,
+  });
+
+  if (telegramRows.length === 0) {
     return result;
   }
 

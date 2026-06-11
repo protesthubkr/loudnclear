@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { getStatementTopicPartyThreshold } from "@/lib/statement-topics/config";
 
 type OpsSupabaseClient = NonNullable<ReturnType<typeof getSupabaseAdminClient>>;
 
@@ -150,6 +151,7 @@ async function getPartyCounts(supabase: OpsSupabaseClient): Promise<StatusCount>
       }),
       countRows(supabase, "party_statement_summaries", {
         column: "topic_gate_status",
+        minConfidence: getStatementTopicPartyThreshold(),
         value: "matched",
       }),
       countRows(supabase, "party_statement_summaries", {
@@ -164,12 +166,18 @@ async function getPartyCounts(supabase: OpsSupabaseClient): Promise<StatusCount>
 async function countRows(
   supabase: OpsSupabaseClient,
   table: string,
-  filter: { column: string; value: string },
+  filter: { column: string; minConfidence?: number; value: string },
 ) {
-  const { count, error } = await supabase
+  let query = supabase
     .from(table)
     .select("*", { count: "exact", head: true })
     .eq(filter.column, filter.value);
+
+  if (filter.minConfidence !== undefined) {
+    query = query.gte("topic_match_confidence", filter.minConfidence);
+  }
+
+  const { count, error } = await query;
 
   if (error) {
     throw new Error(error.message);

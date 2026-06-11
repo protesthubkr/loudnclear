@@ -47,6 +47,7 @@ Telegram 수집:
 
 - Telegram: `status = 'extracted' and core_sentence is not null`
 - Party: `status = 'extracted' and core_sentence is not null and topic_gate_status = 'matched'`
+- Party public feed query also requires `topic_match_confidence >= STATEMENT_TOPIC_PARTY_THRESHOLD` so rows matched under an older lower threshold do not stay visible.
 
 ## 인덱스 기준
 
