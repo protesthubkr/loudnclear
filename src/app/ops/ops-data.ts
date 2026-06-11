@@ -14,6 +14,21 @@ type StatusCount = {
   unmatched?: number;
 };
 
+export type SourceHealthStatus =
+  | "inactive"
+  | "needs_attention"
+  | "ok"
+  | "unknown";
+
+type SourceSummaryCounts = {
+  extracted: number;
+  failed: number;
+  pending: number;
+  skipped: number;
+};
+
+export type DataSourceHealthCounts = Record<SourceHealthStatus, number>;
+
 export type ScanRunRow = {
   candidates_created: number;
   channels_seen: number;
@@ -26,13 +41,39 @@ export type ScanRunRow = {
 };
 
 export type DataSourceRow = {
+  enabled: boolean;
+  health_reason: string;
+  health_status: SourceHealthStatus;
   last_error: string | null;
   last_scanned_at: string | null;
   organization_name: string;
+  recent_extracted_count: number;
+  recent_failed_count: number;
+  recent_pending_count: number;
+  recent_skipped_count: number;
   source_key: string;
   source_type: "party" | "telegram" | "web" | "x";
   source_url: string;
   status: string;
+};
+
+type BaseDataSourceRow = Omit<
+  DataSourceRow,
+  | "health_reason"
+  | "health_status"
+  | "recent_extracted_count"
+  | "recent_failed_count"
+  | "recent_pending_count"
+  | "recent_skipped_count"
+>;
+
+const SOURCE_HEALTH_LOOKBACK_DAYS = 7;
+
+const SOURCE_STALE_HOURS: Record<DataSourceRow["source_type"], number> = {
+  party: 6,
+  telegram: 3,
+  web: 3,
+  x: 24,
 };
 
 export type ProblemRow = {
@@ -89,6 +130,7 @@ export async function getOpsDashboardData(supabase: OpsSupabaseClient) {
   return {
     partyCounts,
     dataSources,
+    dataSourceHealthCounts: getDataSourceHealthCounts(dataSources),
     recentPartyTopics,
     recentProblems,
     recentScanRuns,
@@ -97,6 +139,19 @@ export async function getOpsDashboardData(supabase: OpsSupabaseClient) {
     webCounts,
     xCounts,
   };
+}
+
+export function formatSourceType(type: DataSourceRow["source_type"]) {
+  switch (type) {
+    case "party":
+      return "정당 웹";
+    case "telegram":
+      return "텔레그램";
+    case "web":
+      return "공식 웹";
+    case "x":
+      return "X";
+  }
 }
 
 export function formatDateTime(value: string | null) {
@@ -266,14 +321,82 @@ async function getRecentScanRuns(supabase: OpsSupabaseClient) {
 }
 
 async function getDataSources(supabase: OpsSupabaseClient) {
-  const [telegramSources, partySources, webSources, xSources] = await Promise.all([
+  const sinceIso = new Date(
+    Date.now() - SOURCE_HEALTH_LOOKBACK_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  const [
+    telegramSources,
+    partySources,
+    webSources,
+    xSources,
+    telegramSummaryCounts,
+    partySummaryCounts,
+    webSummaryCounts,
+    xSummaryCounts,
+  ] = await Promise.all([
     getTelegramSources(supabase),
     getPartySources(supabase),
     getWebSources(supabase),
     getXSources(supabase),
+    getSummaryCountsBySource(
+      supabase,
+      "telegram_statement_summaries",
+      "channel_username",
+      sinceIso,
+    ),
+    getSummaryCountsBySource(
+      supabase,
+      "party_statement_summaries",
+      "source_key",
+      sinceIso,
+    ),
+    getSummaryCountsBySource(
+      supabase,
+      "web_statement_summaries",
+      "source_key",
+      sinceIso,
+    ),
+    getSummaryCountsBySource(
+      supabase,
+      "x_statement_summaries",
+      "source_key",
+      sinceIso,
+    ),
   ]);
 
-  return [...telegramSources, ...partySources, ...webSources, ...xSources].sort((first, second) => {
+  const now = new Date();
+  const dataSources = [
+    ...telegramSources.map((source) =>
+      attachSourceHealth(
+        source,
+        telegramSummaryCounts.get(source.source_key.replace(/^@/, "")),
+        now,
+      ),
+    ),
+    ...partySources.map((source) =>
+      attachSourceHealth(source, partySummaryCounts.get(source.source_key), now),
+    ),
+    ...webSources.map((source) =>
+      attachSourceHealth(source, webSummaryCounts.get(source.source_key), now),
+    ),
+    ...xSources.map((source) =>
+      attachSourceHealth(
+        source,
+        xSummaryCounts.get(source.source_key.replace(/^@/, "")),
+        now,
+      ),
+    ),
+  ];
+
+  return dataSources.sort((first, second) => {
+    const healthCompare =
+      getHealthSortOrder(first.health_status) -
+      getHealthSortOrder(second.health_status);
+
+    if (healthCompare !== 0) {
+      return healthCompare;
+    }
+
     const typeCompare = first.source_type.localeCompare(second.source_type);
 
     if (typeCompare !== 0) {
@@ -286,7 +409,7 @@ async function getDataSources(supabase: OpsSupabaseClient) {
 
 async function getTelegramSources(
   supabase: OpsSupabaseClient,
-): Promise<DataSourceRow[]> {
+): Promise<BaseDataSourceRow[]> {
   const [subscriptions, states] = await Promise.all([
     supabase
       .from("telegram_channel_subscriptions")
@@ -335,6 +458,8 @@ async function getTelegramSources(
     const state = stateByChannel.get(subscription.channel_username);
 
     return {
+      enabled:
+        subscription.status === "active" && subscription.statement_feed_enabled,
       last_error: state?.last_error ?? subscription.last_error,
       last_scanned_at:
         state?.last_scanned_at ??
@@ -352,13 +477,12 @@ async function getTelegramSources(
 
 async function getPartySources(
   supabase: OpsSupabaseClient,
-): Promise<DataSourceRow[]> {
+): Promise<BaseDataSourceRow[]> {
   const { data, error } = await supabase
     .from("party_statement_sources")
     .select(
       "source_key,organization_name,list_url,enabled,last_scanned_at,last_error",
     )
-    .eq("enabled", true)
     .order("source_key", { ascending: true });
 
   if (error) {
@@ -373,6 +497,7 @@ async function getPartySources(
     organization_name: string;
     source_key: string;
   }>).map((source) => ({
+    enabled: source.enabled,
     last_error: source.last_error,
     last_scanned_at: source.last_scanned_at,
     organization_name: source.organization_name,
@@ -385,7 +510,7 @@ async function getPartySources(
 
 async function getXSources(
   supabase: OpsSupabaseClient,
-): Promise<DataSourceRow[]> {
+): Promise<BaseDataSourceRow[]> {
   const { data, error } = await supabase
     .from("x_statement_sources")
     .select(
@@ -399,7 +524,6 @@ async function getXSources(
         "last_error",
       ].join(","),
     )
-    .eq("enabled", true)
     .order("source_key", { ascending: true });
 
   if (error) {
@@ -415,6 +539,7 @@ async function getXSources(
     source_url: string;
     username: string;
   }>).map((source) => ({
+    enabled: source.enabled,
     last_error: source.last_error,
     last_scanned_at: source.last_scanned_at,
     organization_name: source.organization_name,
@@ -427,7 +552,7 @@ async function getXSources(
 
 async function getWebSources(
   supabase: OpsSupabaseClient,
-): Promise<DataSourceRow[]> {
+): Promise<BaseDataSourceRow[]> {
   const { data, error } = await supabase
     .from("web_statement_sources")
     .select(
@@ -440,7 +565,6 @@ async function getWebSources(
         "last_error",
       ].join(","),
     )
-    .eq("enabled", true)
     .order("source_key", { ascending: true });
 
   if (error) {
@@ -455,6 +579,7 @@ async function getWebSources(
     organization_name: string;
     source_key: string;
   }>).map((source) => ({
+    enabled: source.enabled,
     last_error: source.last_error,
     last_scanned_at: source.last_scanned_at,
     organization_name: source.organization_name,
@@ -474,6 +599,191 @@ function getTelegramSourceStatus(source: {
   }
 
   return source.statement_feed_enabled ? "enabled" : "disabled";
+}
+
+async function getSummaryCountsBySource(
+  supabase: OpsSupabaseClient,
+  table: string,
+  sourceColumn: string,
+  sinceIso: string,
+): Promise<Map<string, SourceSummaryCounts>> {
+  const { data, error } = await supabase
+    .from(table)
+    .select(`${sourceColumn},status,updated_at`)
+    .gte("updated_at", sinceIso);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const countsBySource = new Map<string, SourceSummaryCounts>();
+
+  for (const row of ((data ?? []) as unknown) as Array<
+    Record<string, unknown>
+  >) {
+    const sourceKey = row[sourceColumn];
+    const status = row.status;
+
+    if (typeof sourceKey !== "string" || typeof status !== "string") {
+      continue;
+    }
+
+    const counts = countsBySource.get(sourceKey) ?? getEmptySourceCounts();
+    incrementSourceCount(counts, status);
+    countsBySource.set(sourceKey, counts);
+  }
+
+  return countsBySource;
+}
+
+function attachSourceHealth(
+  source: BaseDataSourceRow,
+  counts = getEmptySourceCounts(),
+  now: Date,
+): DataSourceRow {
+  const health = getSourceHealth(source, counts, now);
+
+  return {
+    ...source,
+    health_reason: health.reason,
+    health_status: health.status,
+    recent_extracted_count: counts.extracted,
+    recent_failed_count: counts.failed,
+    recent_pending_count: counts.pending,
+    recent_skipped_count: counts.skipped,
+  };
+}
+
+function getSourceHealth(
+  source: BaseDataSourceRow,
+  counts: SourceSummaryCounts,
+  now: Date,
+): { reason: string; status: SourceHealthStatus } {
+  if (!source.enabled || source.status !== "enabled") {
+    return {
+      reason: `현재 ${source.status} 상태입니다.`,
+      status: "inactive",
+    };
+  }
+
+  if (source.last_error?.trim()) {
+    return {
+      reason: source.last_error.trim(),
+      status: "needs_attention",
+    };
+  }
+
+  if (counts.failed > 0) {
+    return {
+      reason: `최근 ${SOURCE_HEALTH_LOOKBACK_DAYS}일 failed ${counts.failed.toLocaleString(
+        "ko-KR",
+      )}건`,
+      status: "needs_attention",
+    };
+  }
+
+  if (!source.last_scanned_at) {
+    return {
+      reason: "아직 수집 기록이 없습니다.",
+      status: "unknown",
+    };
+  }
+
+  const lastScannedAt = new Date(source.last_scanned_at);
+  const elapsedHours =
+    (now.getTime() - lastScannedAt.getTime()) / (60 * 60 * 1000);
+
+  if (
+    Number.isFinite(elapsedHours) &&
+    elapsedHours > SOURCE_STALE_HOURS[source.source_type]
+  ) {
+    return {
+      reason: `마지막 수집이 ${formatElapsedHours(elapsedHours)} 전입니다.`,
+      status: "needs_attention",
+    };
+  }
+
+  if (counts.extracted > 0) {
+    return {
+      reason: `최근 ${SOURCE_HEALTH_LOOKBACK_DAYS}일 extracted ${counts.extracted.toLocaleString(
+        "ko-KR",
+      )}건`,
+      status: "ok",
+    };
+  }
+
+  return {
+    reason: "최근 수집 실행이 정상 범위에 있습니다.",
+    status: "ok",
+  };
+}
+
+function getDataSourceHealthCounts(
+  sources: DataSourceRow[],
+): DataSourceHealthCounts {
+  return sources.reduce<DataSourceHealthCounts>(
+    (counts, source) => {
+      counts[source.health_status] += 1;
+      return counts;
+    },
+    {
+      inactive: 0,
+      needs_attention: 0,
+      ok: 0,
+      unknown: 0,
+    },
+  );
+}
+
+function getEmptySourceCounts(): SourceSummaryCounts {
+  return {
+    extracted: 0,
+    failed: 0,
+    pending: 0,
+    skipped: 0,
+  };
+}
+
+function incrementSourceCount(counts: SourceSummaryCounts, status: string) {
+  if (status === "extracted") {
+    counts.extracted += 1;
+    return;
+  }
+
+  if (status === "failed") {
+    counts.failed += 1;
+    return;
+  }
+
+  if (status === "skipped") {
+    counts.skipped += 1;
+    return;
+  }
+
+  if (status === "pending" || status === "queued") {
+    counts.pending += 1;
+  }
+}
+
+function getHealthSortOrder(status: SourceHealthStatus) {
+  switch (status) {
+    case "needs_attention":
+      return 0;
+    case "unknown":
+      return 1;
+    case "ok":
+      return 2;
+    case "inactive":
+      return 3;
+  }
+}
+
+function formatElapsedHours(hours: number) {
+  if (hours < 24) {
+    return `${Math.floor(hours)}시간`;
+  }
+
+  return `${Math.floor(hours / 24)}일`;
 }
 
 async function getRecentProblems(supabase: OpsSupabaseClient) {

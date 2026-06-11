@@ -90,6 +90,12 @@ export function OpsList({
   );
 }
 
-export function StatusPill({ value }: { value: string }) {
-  return <span className={`ops-pill ops-pill--${value}`}>{value}</span>;
+export function StatusPill({
+  label,
+  value,
+}: {
+  label?: string;
+  value: string;
+}) {
+  return <span className={`ops-pill ops-pill--${value}`}>{label ?? value}</span>;
 }

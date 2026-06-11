@@ -2,6 +2,7 @@ import type { TelegramStatementDocumentType } from "@/lib/telegram-statements/ty
 
 export type WebStatementSourceKey =
   | "climateall"
+  | "climatestrikekr"
   | "equalact"
   | "kfem"
   | "kwau38"

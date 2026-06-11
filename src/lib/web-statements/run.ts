@@ -25,6 +25,7 @@ import type {
 } from "./types";
 
 const DEFAULT_WEB_STATEMENT_LIMIT = 50;
+const DEFAULT_WEB_STATEMENT_WINDOW_HOURS = 168;
 
 export type { WebStatementRunOptions, WebStatementRunResult };
 
@@ -33,9 +34,11 @@ export async function runWebStatementIngest(
 ): Promise<WebStatementRunResult> {
   const dryRun = options.dryRun ?? false;
   const limit = options.limit ?? DEFAULT_WEB_STATEMENT_LIMIT;
-  const cutoffIso = options.windowHours
-    ? new Date(Date.now() - options.windowHours * 60 * 60 * 1000).toISOString()
-    : null;
+  const windowHours =
+    options.windowHours ?? getDefaultWebStatementWindowHours();
+  const cutoffIso = new Date(
+    Date.now() - windowHours * 60 * 60 * 1000,
+  ).toISOString();
   const sources = getWebStatementSources(options.source);
   const result: WebStatementRunResult = {
     dryRun,
@@ -235,6 +238,22 @@ function shouldIncludeWebListItem(
   return listItem.publishedAt >= cutoffIso;
 }
 
+function getDefaultWebStatementWindowHours() {
+  const value = process.env.WEB_STATEMENT_INGEST_WINDOW_HOURS;
+
+  if (!value) {
+    return DEFAULT_WEB_STATEMENT_WINDOW_HOURS;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_WEB_STATEMENT_WINDOW_HOURS;
+  }
+
+  return Math.min(Math.max(parsed, 1), 744);
+}
+
 function toWebStatementRunOutcome(
   document: WebStatementDocument,
   status: WebStatementRunOutcome["status"],
@@ -255,6 +274,7 @@ export function isWebStatementSourceKey(
 ): value is WebStatementSourceKey {
   return (
     value === "climateall" ||
+    value === "climatestrikekr" ||
     value === "equalact" ||
     value === "kfem" ||
     value === "kwau38" ||

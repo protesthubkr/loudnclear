@@ -1,4 +1,5 @@
 import { CLIMATEALL_WEB_STATEMENT_SOURCE } from "./sources/climateall";
+import { CLIMATESTRIKE_WEB_STATEMENT_SOURCE } from "./sources/climatestrike";
 import { EQUALITYACT_WEB_STATEMENT_SOURCE } from "./sources/equalityact";
 import { KFEM_WEB_STATEMENT_SOURCE } from "./sources/kfem";
 import { RAINBOWACTION_WEB_STATEMENT_SOURCE } from "./sources/rainbowaction";
@@ -7,6 +8,7 @@ import type { WebStatementSourceKey, WebStatementSourceParser } from "./types";
 
 export const WEB_STATEMENT_SOURCES: WebStatementSourceParser[] = [
   CLIMATEALL_WEB_STATEMENT_SOURCE,
+  CLIMATESTRIKE_WEB_STATEMENT_SOURCE,
   EQUALITYACT_WEB_STATEMENT_SOURCE,
   KFEM_WEB_STATEMENT_SOURCE,
   RAINBOWACTION_WEB_STATEMENT_SOURCE,

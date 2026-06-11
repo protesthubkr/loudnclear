@@ -900,6 +900,31 @@ a {
   text-decoration: underline;
 }
 
+.ops-source-cell {
+  display: grid;
+  gap: 2px;
+}
+
+.ops-source-cell strong {
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.35;
+}
+
+.ops-source-cell span {
+  color: var(--color-text-subtle);
+  font-family: var(--font-family-mono);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.ops-counts {
+  color: var(--color-text-muted);
+  font-family: var(--font-family-mono);
+  white-space: nowrap;
+}
+
 .ops-pill {
   display: inline-grid;
   min-width: 70px;
@@ -926,6 +951,30 @@ a {
 .ops-pill--running {
   background: #eff6ff;
   color: #1d4ed8;
+}
+
+.ops-pill--ok,
+.ops-pill--enabled,
+.ops-pill--active {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.ops-pill--needs_attention {
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.ops-pill--unknown {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.ops-pill--inactive,
+.ops-pill--disabled,
+.ops-pill--paused {
+  background: #f1f5f9;
+  color: #64748b;
 }
 
 .ops-list {

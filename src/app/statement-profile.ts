@@ -96,6 +96,11 @@ const STATEMENT_PROFILES = [
       "climatejusticealliance",
     ],
   },
+  {
+    label: "기후위기비상",
+    logoSrc: "/climatestrike-logo.jpg",
+    patterns: ["기후위기비상", "기후위기 비상행동", "climatestrikekr", "climate-strike"],
+  },
 ] satisfies Array<StatementProfile & { patterns: string[] }>;
 
 const PARTY_STATEMENT_LOGO_SRCS = new Set([

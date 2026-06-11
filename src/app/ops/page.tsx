@@ -7,7 +7,13 @@ import {
   StatusCard,
   StatusPill,
 } from "./ops-components";
-import { formatDateTime, getOpsDashboardData } from "./ops-data";
+import {
+  formatDateTime,
+  formatSourceType,
+  getOpsDashboardData,
+  type DataSourceRow,
+  type SourceHealthStatus,
+} from "./ops-data";
 import { SITE_NAME } from "../site";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +46,7 @@ export default async function OpsPage() {
 
   const {
     dataSources,
+    dataSourceHealthCounts,
     partyCounts,
     recentPartyTopics,
     recentProblems,
@@ -49,14 +56,30 @@ export default async function OpsPage() {
     webCounts,
     xCounts,
   } = await getOpsDashboardData(supabase);
+  const attentionSources = dataSources.filter(
+    (source) => source.health_status === "needs_attention",
+  );
 
   return (
     <main className="ops-shell">
       <header className="ops-header">
         <p className="ops-kicker">{SITE_NAME}</p>
         <h1>운영 점검</h1>
-        <p>수집, 추출, 토픽 게이트, 최근 실패 항목을 빠르게 확인합니다.</p>
+        <p>데이터 소스, 수집, 추출, 토픽 게이트를 빠르게 확인합니다.</p>
       </header>
+
+      <section
+        className="ops-grid ops-grid--summary"
+        aria-label="데이터 소스 상태 요약"
+      >
+        <StatusCard label="소스 정상" value={dataSourceHealthCounts.ok} />
+        <StatusCard
+          label="점검 대상"
+          value={dataSourceHealthCounts.needs_attention}
+        />
+        <StatusCard label="대기/미확인" value={dataSourceHealthCounts.unknown} />
+        <StatusCard label="비활성" value={dataSourceHealthCounts.inactive} />
+      </section>
 
       <section className="ops-grid ops-grid--summary" aria-label="상태 요약">
         <StatusCard label="텔레그램 extracted" value={telegramCounts.extracted} />
@@ -74,6 +97,19 @@ export default async function OpsPage() {
       </section>
 
       <section className="ops-grid">
+        <OpsPanel title="점검 대상 데이터 소스">
+          <OpsList
+            emptyText="현재 점검 대상 데이터 소스가 없습니다."
+            items={attentionSources.map((source) => ({
+              href: source.source_url,
+              meta: `${formatSourceType(source.source_type)} · 마지막 수집 ${formatDateTime(
+                source.last_scanned_at,
+              )}`,
+              text: `${source.organization_name} (${source.source_key}) · ${source.health_reason}`,
+            }))}
+          />
+        </OpsPanel>
+
         <OpsPanel title="최근 수집 실행">
           <OpsTable
             emptyText="최근 수집 실행 기록이 없습니다."
@@ -88,12 +124,25 @@ export default async function OpsPage() {
           />
         </OpsPanel>
 
-        <OpsPanel title="데이터 소스">
+        <OpsPanel title="데이터 소스 현황">
           <OpsTable
             emptyText="데이터 소스가 없습니다."
-            headers={["유형", "source", "상태", "마지막 수집", "오류"]}
+            headers={[
+              "점검",
+              "유형",
+              "source",
+              "상태",
+              "마지막 수집",
+              "최근 7일",
+              "사유",
+            ]}
             rows={dataSources.map((source) => [
-              source.source_type,
+              <StatusPill
+                key="health"
+                label={formatHealthStatus(source.health_status)}
+                value={source.health_status}
+              />,
+              formatSourceType(source.source_type),
               <a
                 className="ops-table-link"
                 href={source.source_url}
@@ -101,11 +150,21 @@ export default async function OpsPage() {
                 rel="noreferrer"
                 target="_blank"
               >
-                {source.organization_name} ({source.source_key})
+                <span className="ops-source-cell">
+                  <strong>{source.organization_name}</strong>
+                  <span>{source.source_key}</span>
+                </span>
               </a>,
-              source.status,
+              <StatusPill
+                key="status"
+                label={formatSourceStatus(source.status)}
+                value={source.status}
+              />,
               formatDateTime(source.last_scanned_at),
-              source.last_error ?? "-",
+              <span className="ops-counts" key="counts">
+                {formatRecentSourceCounts(source)}
+              </span>,
+              source.health_reason,
             ])}
           />
         </OpsPanel>
@@ -150,4 +209,41 @@ export default async function OpsPage() {
       </section>
     </main>
   );
+}
+
+function formatHealthStatus(status: SourceHealthStatus) {
+  switch (status) {
+    case "inactive":
+      return "비활성";
+    case "needs_attention":
+      return "점검";
+    case "ok":
+      return "정상";
+    case "unknown":
+      return "대기";
+  }
+}
+
+function formatSourceStatus(status: string) {
+  switch (status) {
+    case "active":
+      return "활성";
+    case "disabled":
+      return "중지";
+    case "enabled":
+      return "사용";
+    case "paused":
+      return "일시중지";
+    default:
+      return status;
+  }
+}
+
+function formatRecentSourceCounts(source: DataSourceRow) {
+  return [
+    `E ${source.recent_extracted_count.toLocaleString("ko-KR")}`,
+    `P ${source.recent_pending_count.toLocaleString("ko-KR")}`,
+    `S ${source.recent_skipped_count.toLocaleString("ko-KR")}`,
+    `F ${source.recent_failed_count.toLocaleString("ko-KR")}`,
+  ].join(" · ");
 }

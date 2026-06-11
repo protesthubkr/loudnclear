@@ -594,6 +594,13 @@ values
     'https://www.climatejusticealliance.kr',
     'https://www.climatejusticealliance.kr',
     true
+  ),
+  (
+    'climatestrikekr',
+    '기후위기비상',
+    'http://climate-strike.kr/press/',
+    'http://climate-strike.kr/feed/',
+    true
   )
 on conflict (source_key) do update
 set

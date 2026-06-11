@@ -9,6 +9,7 @@
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `CRON_SECRET`
 - `OPENAI_API_KEY`
+- `WEB_STATEMENT_INGEST_WINDOW_HOURS`
 
 운영 화면:
 - `OPS_BASIC_USER`
@@ -41,6 +42,7 @@ Invoke-WebRequest -Uri 'http://127.0.0.1:3000/api/ingest/party-statements?dryRun
 
 statement topic matching은 원문 `text_snapshot` embedding 기준으로 동작한다. confirmed topic은 telegram과 공식 웹사이트 web summary가 함께 형성하고, party summary는 confirmed topic에 붙은 경우에만 공개된다.
 non-dryRun topic matching은 현재 party threshold보다 낮은 과거 matched row를 먼저 `unmatched`로 정리한다.
+web statement ingest는 기본적으로 `WEB_STATEMENT_INGEST_WINDOW_HOURS` 기간 안의 문서만 저장한다. 2026-06-01 백필처럼 더 넓은 범위가 필요할 때만 route query의 `windowHours`로 명시한다.
 
 공식 웹사이트 source:
 - 환경운동연합: `https://kfem.or.kr/rss`
@@ -48,6 +50,7 @@ non-dryRun topic matching은 현재 party threshold보다 낮은 과거 matched 
 - 여성연합: `https://women21.or.kr/statement/`
 - 무지개행동: `https://rainbowaction.kr/`
 - 기후정의동맹: `https://www.climatejusticealliance.kr`
+- 기후위기비상: `http://climate-strike.kr/feed/`
 
 X API ingest cron은 중지되어 있으며, 공개 피드와 confirmed topic 입력에도 X summary를 사용하지 않는다. 기존 X 테이블과 수동 route는 과거 기록 점검용으로만 남긴다.
 
