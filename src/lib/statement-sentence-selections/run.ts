@@ -16,9 +16,9 @@ import {
   buildSelectionKey,
   getExistingStatementSentenceSelectionKeys,
   getRequiredStatementSentenceSelectionSupabaseClient,
-  getRowsForStatementSentenceSelection,
   upsertStatementSentenceSelection,
 } from "./repository";
+import { getRowsForStatementSentenceSelection } from "./repository-source-rows";
 import type {
   StatementSentenceSelectionDecision,
   StatementSentenceSelectionOutcome,

@@ -4,12 +4,14 @@ import {
   compareStatementItemsOldestFirst,
 } from "./public-feed-time";
 import {
-  getConfirmedTelegramStatementSummaryIds,
-  getPublicPartyStatementItems,
-  getPublicTelegramStatementItems,
   hasPublicPartyStatementItemsBefore,
+  getPublicPartyStatementItems,
+} from "./public-feed-party";
+import {
+  getConfirmedTelegramStatementSummaryIds,
+  getPublicTelegramStatementItems,
   hasPublicTelegramStatementItemsBefore,
-} from "./public-feed-sources";
+} from "./public-feed-telegram";
 import type { PublicStatementFeedItem } from "./public-feed-types";
 
 type PublicStatementFeedQuery = {
