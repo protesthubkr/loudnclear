@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Gowun_Batang } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { SITE_DESCRIPTION, SITE_NAME } from "./site";
 import { getSiteUrl } from "./site-url";
@@ -50,7 +51,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className={gowunBatang.variable}>{children}</body>
+      <body className={gowunBatang.variable}>
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }
