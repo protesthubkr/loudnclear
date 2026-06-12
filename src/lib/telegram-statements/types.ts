@@ -36,9 +36,11 @@ export type TelegramStatementChannelResult = {
   channelTitle: string;
   channelUsername: string;
   cursorMessageId: number | null;
+  errorMessage: string | null;
   skippedBecauseLocked: boolean;
   messagesSeen: number;
   messagesWritten: number;
+  status: "failed" | "skipped_locked" | "succeeded";
 };
 
 export type TelegramStatementScanResult = {
@@ -46,6 +48,7 @@ export type TelegramStatementScanResult = {
   candidatesCreated: number;
   candidateMatches: number;
   channelsScanned: number;
+  channelsFailed: number;
   channelsSkipped: number;
   cutoffIso: string | null;
   dryRun: boolean;

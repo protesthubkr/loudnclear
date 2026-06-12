@@ -32,12 +32,14 @@ export async function createTelegramStatementScanRun({
 
 export async function finishTelegramStatementScanRun({
   errorMessage,
+  metadata,
   runId,
   status,
   supabase,
   totals,
 }: {
   errorMessage?: string;
+  metadata?: Record<string, unknown>;
   runId: string | null;
   status: "succeeded" | "failed";
   supabase: SupabaseClient;
@@ -52,17 +54,23 @@ export async function finishTelegramStatementScanRun({
     return;
   }
 
+  const values: Record<string, unknown> = {
+    candidates_created: totals.candidatesCreated,
+    channels_seen: totals.channelsSeen,
+    error_message: errorMessage ?? null,
+    finished_at: new Date().toISOString(),
+    messages_seen: totals.messagesSeen,
+    messages_written: totals.messagesWritten,
+    status,
+  };
+
+  if (metadata) {
+    values.metadata = metadata;
+  }
+
   const { error } = await supabase
     .from("telegram_statement_scan_runs")
-    .update({
-      candidates_created: totals.candidatesCreated,
-      channels_seen: totals.channelsSeen,
-      error_message: errorMessage ?? null,
-      finished_at: new Date().toISOString(),
-      messages_seen: totals.messagesSeen,
-      messages_written: totals.messagesWritten,
-      status,
-    })
+    .update(values)
     .eq("id", runId);
 
   if (error) {

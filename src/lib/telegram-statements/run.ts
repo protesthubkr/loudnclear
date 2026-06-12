@@ -28,6 +28,7 @@ export async function runTelegramStatementFeedScan(
     backfill,
     candidatesCreated: 0,
     candidateMatches: 0,
+    channelsFailed: 0,
     channelsScanned: 0,
     channelsSkipped: 0,
     cutoffIso,
@@ -38,6 +39,7 @@ export async function runTelegramStatementFeedScan(
     runId,
     windowHours,
   };
+  let hasFinishedRun = false;
 
   try {
     const subscriptions = await getStatementFeedSubscriptions({
@@ -65,6 +67,11 @@ export async function runTelegramStatementFeedScan(
         continue;
       }
 
+      if (channelResult.status === "failed") {
+        totals.channelsFailed += 1;
+        continue;
+      }
+
       totals.channelsScanned += 1;
       totals.candidatesCreated += channelResult.candidatesCreated;
       totals.candidateMatches += channelResult.candidateMatches;
@@ -72,22 +79,40 @@ export async function runTelegramStatementFeedScan(
       totals.messagesWritten += channelResult.messagesWritten;
     }
 
+    const channelFailureMessage = getChannelFailureMessage(totals);
+    const status =
+      totals.channelsFailed > 0 &&
+      totals.channelsScanned === 0 &&
+      totals.channelsSkipped === 0
+        ? "failed"
+        : "succeeded";
+
     await finishRun({
-      status: "succeeded",
+      errorMessage: channelFailureMessage ?? undefined,
+      metadata: getRunMetadata(totals),
+      status,
       runId,
       supabase,
       totals,
     });
+    hasFinishedRun = true;
+
+    if (status === "failed") {
+      throw new Error(channelFailureMessage ?? "Telegram statement ingest failed.");
+    }
 
     return totals;
   } catch (error) {
-    await finishRun({
-      errorMessage: error instanceof Error ? error.message : String(error),
-      status: "failed",
-      runId,
-      supabase,
-      totals,
-    });
+    if (!hasFinishedRun) {
+      await finishRun({
+        errorMessage: error instanceof Error ? error.message : String(error),
+        metadata: getRunMetadata(totals),
+        status: "failed",
+        runId,
+        supabase,
+        totals,
+      });
+    }
 
     throw error;
   }
@@ -95,12 +120,14 @@ export async function runTelegramStatementFeedScan(
 
 async function finishRun({
   errorMessage,
+  metadata,
   runId,
   status,
   supabase,
   totals,
 }: {
   errorMessage?: string;
+  metadata?: Record<string, unknown>;
   runId: string | null;
   status: "failed" | "succeeded";
   supabase: ReturnType<typeof getRequiredSupabaseAdminClient>;
@@ -108,6 +135,7 @@ async function finishRun({
 }) {
   await finishTelegramStatementScanRun({
     errorMessage,
+    metadata,
     runId,
     status,
     supabase,
@@ -118,4 +146,36 @@ async function finishRun({
       messagesWritten: totals.messagesWritten,
     },
   });
+}
+
+function getChannelFailureMessage(totals: TelegramStatementScanResult) {
+  const failures = totals.results.filter((result) => result.status === "failed");
+
+  if (failures.length === 0) {
+    return null;
+  }
+
+  const failedChannels = failures
+    .map((failure) => `${failure.channelUsername}: ${failure.errorMessage ?? "failed"}`)
+    .join("; ");
+
+  return `${failures.length} telegram channel(s) failed: ${failedChannels}`;
+}
+
+function getRunMetadata(totals: TelegramStatementScanResult) {
+  const failures = totals.results.filter((result) => result.status === "failed");
+
+  if (failures.length === 0) {
+    return undefined;
+  }
+
+  return {
+    source: "telegram_statement_feed",
+    channel_failures: failures.length,
+    failed_channels: failures.map((failure) => ({
+      channel_title: failure.channelTitle,
+      channel_username: failure.channelUsername,
+      error_message: failure.errorMessage,
+    })),
+  };
 }

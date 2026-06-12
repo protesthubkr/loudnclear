@@ -45,6 +45,8 @@ export async function scanTelegramStatementChannel({
       channelTitle: subscription.channelTitle,
       channelUsername: subscription.channelUsername,
       cursorMessageId: state?.lastScannedMessageId ?? null,
+      errorMessage: null,
+      status: "skipped_locked",
       messagesSeen: 0,
       messagesWritten: 0,
       skippedBecauseLocked: true,
@@ -102,9 +104,11 @@ export async function scanTelegramStatementChannel({
       channelTitle: subscription.channelTitle,
       channelUsername: subscription.channelUsername,
       cursorMessageId: scan.cursorMessage?.messageId ?? null,
+      errorMessage: null,
       messagesSeen: scan.messages.length,
       messagesWritten,
       skippedBecauseLocked: false,
+      status: "succeeded",
     };
   } catch (error) {
     if (!backfill) {
@@ -116,6 +120,22 @@ export async function scanTelegramStatementChannel({
       });
     }
 
-    throw error;
+    return {
+      candidatesCreated: 0,
+      candidateMatches: 0,
+      channelTitle: subscription.channelTitle,
+      channelUsername: subscription.channelUsername,
+      cursorMessageId:
+        state?.lastScannedMessageId ?? subscription.lastCheckedMessageId ?? null,
+      errorMessage: getTelegramStatementChannelErrorMessage(error),
+      messagesSeen: 0,
+      messagesWritten: 0,
+      skippedBecauseLocked: false,
+      status: "failed",
+    };
   }
+}
+
+function getTelegramStatementChannelErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
 }
