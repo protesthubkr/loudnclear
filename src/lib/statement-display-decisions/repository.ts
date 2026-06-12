@@ -5,9 +5,9 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { STATEMENT_DISPLAY_DECISION_PROMPT_VERSION } from "./config";
 import type {
   StatementDisplayDecision,
+  StatementDisplayDecisionSourceType,
   StatementDisplayFeedDecision,
-  StatementSentenceSelectionRow,
-  StatementSentenceSelectionSourceType,
+  StatementDisplaySourceRow,
 } from "./types";
 
 export function getRequiredStatementDisplayDecisionSupabaseClient() {
@@ -41,7 +41,7 @@ export async function getExistingStatementDisplayDecisionKeys({
   rows,
   supabase,
 }: {
-  rows: StatementSentenceSelectionRow[];
+  rows: StatementDisplaySourceRow[];
   supabase: SupabaseClient;
 }) {
   if (rows.length === 0) {
@@ -64,7 +64,7 @@ export async function getExistingStatementDisplayDecisionKeys({
   return new Set(
     ((data as Array<{
       source_summary_id: string;
-      source_type: StatementSentenceSelectionSourceType;
+      source_type: StatementDisplayDecisionSourceType;
     }> | null) ?? []).map((row) =>
       buildDisplayDecisionKey(row.source_type, row.source_summary_id),
     ),
@@ -75,7 +75,7 @@ export async function getFailedStatementDisplayDecisionKeys({
   rows,
   supabase,
 }: {
-  rows: StatementSentenceSelectionRow[];
+  rows: StatementDisplaySourceRow[];
   supabase: SupabaseClient;
 }) {
   if (rows.length === 0) {
@@ -99,7 +99,7 @@ export async function getFailedStatementDisplayDecisionKeys({
   return new Set(
     ((data as Array<{
       source_summary_id: string;
-      source_type: StatementSentenceSelectionSourceType;
+      source_type: StatementDisplayDecisionSourceType;
     }> | null) ?? []).map((row) =>
       buildDisplayDecisionKey(row.source_type, row.source_summary_id),
     ),
@@ -116,7 +116,7 @@ export async function upsertStatementDisplayDecision({
   comparatorModel: string | null;
   comparatorPromptVersion: string;
   decision: StatementDisplayDecision;
-  row: StatementSentenceSelectionRow;
+  row: StatementDisplaySourceRow;
   supabase: SupabaseClient;
 }) {
   const output = decision.comparatorOutput;
@@ -169,7 +169,7 @@ export async function getSelectedStatementDisplayDecisionMap({
   summaryIds,
   supabase,
 }: {
-  sourceType: StatementSentenceSelectionSourceType;
+  sourceType: StatementDisplayDecisionSourceType;
   summaryIds: string[];
   supabase: SupabaseClient;
 }) {
@@ -194,7 +194,7 @@ export async function getSelectedStatementDisplayDecisionMap({
       core_sentence: string | null;
       display_sentence: string | null;
       source_summary_id: string;
-      source_type: StatementSentenceSelectionSourceType;
+      source_type: StatementDisplayDecisionSourceType;
       topic_label: string | null;
     }> | null) ?? [])
       .filter((row) => row.core_sentence && row.display_sentence)
@@ -212,7 +212,7 @@ export async function getSelectedStatementDisplayDecisionMap({
 }
 
 export function buildDisplayDecisionKey(
-  sourceType: StatementSentenceSelectionSourceType,
+  sourceType: StatementDisplayDecisionSourceType,
   sourceSummaryId: string,
 ) {
   return `${sourceType}:${sourceSummaryId}`;

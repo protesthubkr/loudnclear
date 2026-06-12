@@ -1,7 +1,6 @@
 import "server-only";
 
-import { buildStatementSentenceCandidates } from "@/lib/statement-sentence-selections/candidates";
-import { getRowsForStatementSentenceSelection } from "@/lib/statement-sentence-selections/repository-source-rows";
+import { buildStatementDisplayCandidates } from "./candidates";
 import {
   getStatementDisplayDecisionLimit,
   getStatementDisplayDecisionWindowHours,
@@ -21,8 +20,9 @@ import type {
   StatementDisplayDecisionOutcome,
   StatementDisplayDecisionRunOptions,
   StatementDisplayDecisionRunResult,
-  StatementSentenceSelectionRow,
+  StatementDisplaySourceRow,
 } from "./types";
+import { getRowsForStatementDisplayDecision } from "./source-rows";
 import { validateStatementDisplayDecision } from "./validation";
 
 export type {
@@ -44,7 +44,7 @@ export async function runStatementDisplayDecisionPipeline(
     Date.now() - windowHours * 60 * 60 * 1000,
   ).toISOString();
   const supabase = getRequiredStatementDisplayDecisionSupabaseClient();
-  const rows = await getRowsForStatementSentenceSelection({
+  const rows = await getRowsForStatementDisplayDecision({
     cutoffIso,
     limit,
     sourceType: options.sourceType,
@@ -93,7 +93,7 @@ export async function runStatementDisplayDecisionPipeline(
       continue;
     }
 
-    const candidates = buildStatementSentenceCandidates(row);
+    const candidates = buildStatementDisplayCandidates(row);
 
     if (dryRun) {
       result.outcomes.push({
@@ -130,7 +130,7 @@ export async function runStatementDisplayDecisionPipeline(
       errorMessage: decision.errorMessage,
       finalStatus: decision.status,
       selectedMode: decision.comparatorOutput?.selected_mode ?? null,
-      selectedSentence: decision.selectedCandidate?.text ?? null,
+      selectedSentence: decision.coreSentence,
       topicLabel: decision.comparatorOutput?.topic_label ?? null,
     });
   }
@@ -142,8 +142,8 @@ async function decideStatementDisplay({
   candidates,
   row,
 }: {
-  candidates: ReturnType<typeof buildStatementSentenceCandidates>;
-  row: StatementSentenceSelectionRow;
+  candidates: ReturnType<typeof buildStatementDisplayCandidates>;
+  row: StatementDisplaySourceRow;
 }): Promise<StatementDisplayDecision & { comparatorModel?: string }> {
   if (candidates.length === 0) {
     return failedDecision("no_sentence_candidates", candidates.length);
@@ -157,6 +157,7 @@ async function decideStatementDisplay({
     const validation = validateStatementDisplayDecision({
       candidates,
       output: comparator.output,
+      row,
     });
 
     return {
@@ -190,7 +191,7 @@ function failedDecision(
 }
 
 function toOutcome(
-  row: StatementSentenceSelectionRow,
+  row: StatementDisplaySourceRow,
   status: StatementDisplayDecisionOutcome["status"],
 ): StatementDisplayDecisionOutcome {
   return {

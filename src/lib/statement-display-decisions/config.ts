@@ -1,20 +1,17 @@
-import { getStatementSentenceSelectionWindowHours } from "@/lib/statement-sentence-selections/config";
-
 const DEFAULT_CONTEXT_CHARS = 20000;
 const DEFAULT_DISPLAY_DECISION_LIMIT = 20;
-const DEFAULT_MAX_OUTPUT_TOKENS = 1400;
+const DEFAULT_MAX_OUTPUT_TOKENS = 2200;
 const DEFAULT_REASONING_EFFORT = "medium";
+const DEFAULT_WINDOW_HOURS = 240;
 
 export const STATEMENT_DISPLAY_DECISION_PROMPT_VERSION =
-  "statement_display_decision_v1";
+  "statement_display_decision_v2_ac_judge";
 export const STATEMENT_DISPLAY_DECISION_REASONING_ENV_KEY =
   "OPENAI_STATEMENT_DISPLAY_DECISION_REASONING_EFFORT";
 
 export function getStatementDisplayDecisionModel() {
   return (
     process.env.OPENAI_STATEMENT_DISPLAY_DECISION_MODEL?.trim() ||
-    process.env.OPENAI_STATEMENT_VERIFIER_MODEL?.trim() ||
-    process.env.OPENAI_STATEMENT_SELECTOR_MODEL?.trim() ||
     readRequiredStringEnv("OPENAI_STATEMENT_EXTRACTION_MODEL")
   );
 }
@@ -39,13 +36,13 @@ export function getStatementDisplayDecisionWindowHours() {
   const value = process.env.STATEMENT_DISPLAY_DECISION_WINDOW_HOURS;
 
   if (!value) {
-    return getStatementSentenceSelectionWindowHours();
+    return DEFAULT_WINDOW_HOURS;
   }
 
   const parsed = Number.parseInt(value, 10);
 
   if (!Number.isFinite(parsed)) {
-    return getStatementSentenceSelectionWindowHours();
+    return DEFAULT_WINDOW_HOURS;
   }
 
   return Math.min(Math.max(parsed, 1), 744);

@@ -69,6 +69,10 @@ export async function getPublicStatementFeedWindow(
   return promise;
 }
 
+export function clearPublicStatementFeedWindowCache() {
+  publicFeedWindowCache.clear();
+}
+
 async function loadPublicStatementFeedWindow(
   query: Required<Pick<PublicStatementFeedQuery, "limit">> &
     Omit<PublicStatementFeedQuery, "limit">,

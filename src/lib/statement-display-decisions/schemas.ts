@@ -1,9 +1,25 @@
-import { STATEMENT_SENTENCE_ROLES } from "@/lib/statement-sentence-selections/schemas";
+const STATEMENT_DISPLAY_SENTENCE_ROLES = [
+  "demand",
+  "condemnation",
+  "criticism",
+  "welcome",
+  "concern",
+  "pledge",
+  "context",
+  "notice",
+  "tribute",
+  "resource_intro",
+] as const;
 
 export const STATEMENT_DISPLAY_DECISION_SCHEMA = {
   type: "object",
   additionalProperties: false,
   required: [
+    "candidate_a_sentence",
+    "candidate_a_source_ids",
+    "candidate_c_sentence",
+    "candidate_c_source_ids",
+    "chosen_candidate",
     "final_status",
     "selected_mode",
     "selected_sentence_id",
@@ -19,6 +35,20 @@ export const STATEMENT_DISPLAY_DECISION_SCHEMA = {
     "reason",
   ],
   properties: {
+    candidate_a_sentence: { type: ["string", "null"] },
+    candidate_a_source_ids: {
+      type: "array",
+      items: { type: "string" },
+    },
+    candidate_c_sentence: { type: ["string", "null"] },
+    candidate_c_source_ids: {
+      type: "array",
+      items: { type: "string" },
+    },
+    chosen_candidate: {
+      type: "string",
+      enum: ["A", "C", "none"],
+    },
     final_status: {
       type: "string",
       enum: ["selected", "review_needed", "rejected"],
@@ -40,7 +70,7 @@ export const STATEMENT_DISPLAY_DECISION_SCHEMA = {
     stance_action: { type: ["string", "null"] },
     sentence_role: {
       type: ["string", "null"],
-      enum: [...STATEMENT_SENTENCE_ROLES, null],
+      enum: [...STATEMENT_DISPLAY_SENTENCE_ROLES, null],
     },
     subject_clarity: {
       type: "string",

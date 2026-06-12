@@ -13,6 +13,13 @@ export type StatusCount = {
   unmatched?: number;
 };
 
+export type DisplayDecisionStatusCounts = {
+  failed: number;
+  rejected: number;
+  review_needed: number;
+  selected: number;
+};
+
 export type SourceHealthStatus =
   | "inactive"
   | "needs_attention"
@@ -54,6 +61,30 @@ export type DataSourceRow = {
   source_type: "party" | "telegram" | "web" | "x";
   source_url: string;
   status: string;
+};
+
+export type DisplayDecisionReviewRow = {
+  candidate_a_sentence: string | null;
+  candidate_c_sentence: string | null;
+  comparator_reason: string | null;
+  confidence: number | null;
+  core_sentence: string | null;
+  display_at: string | null;
+  display_sentence: string | null;
+  final_status: "failed" | "rejected" | "review_needed" | "selected";
+  id: string;
+  last_error: string | null;
+  organization_name: string;
+  selected_mode: string | null;
+  sentence_role: string | null;
+  source_key: string;
+  source_summary_id: string;
+  source_type: DataSourceRow["source_type"];
+  source_url: string;
+  stance_clarity: string | null;
+  subject_clarity: string | null;
+  title: string | null;
+  updated_at: string;
 };
 
 export type BaseDataSourceRow = Omit<

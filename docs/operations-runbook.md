@@ -13,6 +13,8 @@
 - `STATEMENT_TOPIC_WINDOW_HOURS`
 - `STATEMENT_TOPIC_RUN_LIMIT`
 - `STATEMENT_DISPLAY_DECISION_LIMIT`
+- `STATEMENT_EVAL_LIMIT`
+- `STATEMENT_EVAL_WINDOW_HOURS`
 
 운영 화면:
 - `OPS_BASIC_USER`
@@ -55,7 +57,21 @@ telegram 수집/추출과 display decision은 공개 피드 지연을 줄이기 
 statement topic matching은 원문 `text_snapshot` embedding 기준으로 동작한다. confirmed topic은 telegram과 공식 웹사이트 web summary가 함께 형성한다. telegram/web summary는 confirmed topic 링크가 없어도 display decision이 `selected`이면 공개될 수 있고, party summary는 confirmed topic에 붙은 경우에만 공개된다.
 non-dryRun topic matching은 현재 party threshold보다 낮은 과거 matched row를 먼저 `unmatched`로 정리한다.
 web statement ingest는 기본적으로 `WEB_STATEMENT_INGEST_WINDOW_HOURS` 기간 안의 문서만 저장한다. 2026-06-01 백필처럼 더 넓은 범위가 필요할 때만 POST JSON body의 `windowHours`로 명시한다.
-statement display decision은 telegram/web 공개 여부와 party 공개 문구를 고르는 마지막 gate다. backlog가 보이면 cron 주기보다 `STATEMENT_DISPLAY_DECISION_LIMIT`을 먼저 늘린다.
+statement display decision은 telegram/web 공개 여부와 party 공개 문구를 고르는 마지막 gate다. 현재 버전은 `statement_display_decision_v2_ac_judge`이며, 제목/리드 기반 A 후보와 본문 conservative C 후보를 함께 만든 뒤 사용자 선택 기준을 차용한 judge가 최종 문장을 고른다. backlog가 보이면 cron 주기보다 `STATEMENT_DISPLAY_DECISION_LIMIT`을 먼저 늘린다.
+
+## 문장 실험실
+
+`/ops/evals`는 운영 피드를 수정하지 않는 별도 실험 환경이다. 최근 문서 snapshot을 `statement_eval_*` 테이블에 저장하고, 여러 system variant가 만든 span-plan 기반 문장을 사람이 직접 비교한다. 채점은 문서 단위가 아니라 생성 문장 output 단위로 수행한다.
+
+기본값:
+- `STATEMENT_EVAL_WINDOW_HOURS=168`
+- `STATEMENT_EVAL_LIMIT=20`
+- `OPENAI_STATEMENT_EVAL_MODEL=gpt-5-mini`
+- `OPENAI_STATEMENT_EVAL_REASONING_EFFORT=low`
+
+실험 run은 cron에 연결하지 않는다. `/ops/evals` 화면에서 수동 실행하거나, 외부 자동화가 필요할 때만 `OPS_RUN_SECRET` Bearer 인증으로 `POST /api/ops/statement-evals/run`을 호출한다. 실험 결과는 운영 `core_sentence`나 `statement_display_decisions`를 갱신하지 않는다.
+
+eval lab은 run/output 단위의 `estimated_input_tokens`, `estimated_output_tokens`, `estimated_total_tokens`를 저장한다. 이 값은 정확한 과금 로그가 아니라 같은 run 안에서 system variant별 비용 경향을 비교하기 위한 추정치다.
 
 공식 웹사이트 source:
 - 환경운동연합: `https://kfem.or.kr/rss`
@@ -126,11 +142,6 @@ Invoke-RestMethod -Method Post "$baseUrl/api/ingest/statement-topics" -Headers $
 Invoke-RestMethod -Method Post "$baseUrl/api/ingest/statement-display-decisions" -Headers $headers -ContentType 'application/json' -Body (@{ dryRun = $true; windowHours = $windowHours; limit = 100 } | ConvertTo-Json)
 Invoke-RestMethod -Method Post "$baseUrl/api/ingest/statement-display-decisions" -Headers $headers -ContentType 'application/json' -Body (@{ windowHours = $windowHours; limit = 100 } | ConvertTo-Json)
 
-# LLM sentence selector/verifier comparison. This does not replace public feed sentences.
-Invoke-RestMethod -Method Post "$baseUrl/api/ingest/statement-sentence-selections" -Headers $headers -ContentType 'application/json' -Body (@{ dryRun = $true; windowHours = $windowHours; limit = 10 } | ConvertTo-Json)
-Invoke-RestMethod -Method Post "$baseUrl/api/ingest/statement-sentence-selections" -Headers $headers -ContentType 'application/json' -Body (@{ windowHours = $windowHours; limit = 10 } | ConvertTo-Json)
 ```
 
 `telegram-statement-extractions`는 `pendingSeen`이 남아 있으면 같은 명령을 반복한다. topic matching은 telegram/web extraction이 충분히 끝난 뒤 실행해야 confirmed topic과 정당 성명 공개 게이트가 안정적으로 열린다. display decision은 topic matching 뒤에 실행해야 정당 성명까지 같은 run에서 공개 후보가 될 수 있다.
-
-sentence selector/verifier v4는 `statement_sentence_llm_selections.final_status`에 `review_needed`를 저장할 수 있어야 한다. production에서 non-dryRun을 실행하기 전에 `supabase/migrations/20260610143000_statement_sentence_llm_review_needed.sql`을 loudnclear Supabase에 적용한다.

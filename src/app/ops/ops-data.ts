@@ -14,9 +14,14 @@ import {
   getRecentTopics,
 } from "./ops-recent";
 import { getDataSourceHealthCounts, getDataSources } from "./ops-sources";
+import {
+  getDisplayDecisionReviewRows,
+  getDisplayDecisionStatusCounts,
+} from "./ops-display-decisions";
 import type { OpsSupabaseClient } from "./ops-types";
 export type {
   DataSourceRow,
+  DisplayDecisionReviewRow,
   SourceHealthStatus,
 } from "./ops-types";
 
@@ -31,6 +36,8 @@ export async function getOpsDashboardData(supabase: OpsSupabaseClient) {
     recentProblems,
     recentPartyTopics,
     recentTopics,
+    displayDecisionCounts,
+    displayDecisionReviewRows,
   ] = await Promise.all([
     getTelegramCounts(supabase),
     getPartyCounts(supabase),
@@ -41,12 +48,16 @@ export async function getOpsDashboardData(supabase: OpsSupabaseClient) {
     getRecentProblems(supabase),
     getRecentPartyTopics(supabase),
     getRecentTopics(supabase),
+    getDisplayDecisionStatusCounts(supabase),
+    getDisplayDecisionReviewRows(supabase),
   ]);
 
   return {
     partyCounts,
     dataSources,
     dataSourceHealthCounts: getDataSourceHealthCounts(dataSources),
+    displayDecisionCounts,
+    displayDecisionReviewRows,
     recentPartyTopics,
     recentProblems,
     recentScanRuns,

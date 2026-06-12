@@ -12,7 +12,7 @@ import {
   runStatementDisplayDecisionPipeline,
   type StatementDisplayDecisionRunOptions,
 } from "@/lib/statement-display-decisions/run";
-import type { StatementSentenceSelectionSourceType } from "@/lib/statement-sentence-selections/types";
+import type { StatementDisplayDecisionSourceType } from "@/lib/statement-display-decisions/types";
 
 const MAX_WINDOW_HOURS = 744;
 const MAX_DISPLAY_DECISION_LIMIT = 500;
@@ -103,7 +103,7 @@ function parseRunOptions(
 
 function parseSourceType(
   value: string | null,
-): StatementSentenceSelectionSourceType | null {
+): StatementDisplayDecisionSourceType | null {
   if (!value) {
     return null;
   }

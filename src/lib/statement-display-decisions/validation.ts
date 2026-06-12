@@ -1,32 +1,49 @@
+import { getDisplayTextRejectReason } from "./candidates";
 import {
-  getUnusableCandidateReason,
-  hasStanceAction,
-  NON_DISPLAYABLE_SENTENCE_ROLES,
-} from "@/lib/statement-sentence-selections/heuristics";
+  finalizeDisplaySentence,
+  hasDisplayPostprocessResidue,
+  normalizeGroundingText,
+} from "./postprocess";
 import type {
+  StatementDisplayCandidate,
   StatementDisplayComparatorOutput,
   StatementDisplayDecisionFinalStatus,
-  StatementSentenceSelectionCandidate,
+  StatementDisplaySentenceRole,
+  StatementDisplaySourceRow,
 } from "./types";
 
 type ValidationResult = {
-  candidate: StatementSentenceSelectionCandidate | null;
+  candidate: StatementDisplayCandidate | null;
   coreSentence: string | null;
   displaySentence: string | null;
   errorMessage: string | null;
   status: Exclude<StatementDisplayDecisionFinalStatus, "failed">;
 };
 
+const NON_DISPLAYABLE_SENTENCE_ROLES = new Set<StatementDisplaySentenceRole>([
+  "context",
+  "notice",
+  "tribute",
+  "resource_intro",
+]);
+
 export function validateStatementDisplayDecision({
   candidates,
   output,
+  row,
 }: {
-  candidates: StatementSentenceSelectionCandidate[];
+  candidates: StatementDisplayCandidate[];
   output: StatementDisplayComparatorOutput;
+  row: StatementDisplaySourceRow;
 }): ValidationResult {
+  const candidate = findSelectedCandidate(candidates, output);
+  const displaySentence = output.display_sentence
+    ? finalizeDisplaySentence(output.display_sentence)
+    : null;
+
   if (output.final_status === "rejected") {
     return {
-      candidate: null,
+      candidate,
       coreSentence: null,
       displaySentence: null,
       errorMessage: output.reason || "rejected_by_comparator",
@@ -36,7 +53,8 @@ export function validateStatementDisplayDecision({
 
   if (output.final_status === "review_needed") {
     return review(output.reason || "review_needed_by_comparator", {
-      candidate: findSelectedCandidate(candidates, output.selected_sentence_id),
+      candidate,
+      displaySentence,
       output,
     });
   }
@@ -46,96 +64,98 @@ export function validateStatementDisplayDecision({
     output.selected_mode !== "label_plus_sentence"
   ) {
     return review("selected_status_requires_display_mode", {
-      candidate: findSelectedCandidate(candidates, output.selected_sentence_id),
-      output,
-    });
-  }
-
-  const candidate = findSelectedCandidate(candidates, output.selected_sentence_id);
-
-  if (!candidate) {
-    return review("invalid_selected_sentence_id", { candidate: null, output });
-  }
-
-  const unusableReason = getUnusableCandidateReason(candidate.text);
-
-  if (unusableReason) {
-    return review(unusableReason, { candidate, output });
-  }
-
-  if (output.core_sentence !== candidate.text) {
-    return review("core_sentence_must_equal_selected_candidate", {
       candidate,
+      displaySentence,
       output,
     });
   }
 
-  if (!output.display_sentence) {
-    return review("missing_display_sentence", { candidate, output });
+  if (output.chosen_candidate === "none") {
+    return review("selected_status_requires_chosen_candidate", {
+      candidate,
+      displaySentence,
+      output,
+    });
   }
 
   if (output.subject_clarity === "missing") {
-    return review("missing_subject_clarity", { candidate, output });
+    return review("missing_subject_clarity", {
+      candidate,
+      displaySentence,
+      output,
+    });
   }
 
   if (output.stance_clarity === "missing") {
-    return review("missing_stance_clarity", { candidate, output });
+    return review("missing_stance_clarity", {
+      candidate,
+      displaySentence,
+      output,
+    });
   }
 
   if (
     output.sentence_role &&
     NON_DISPLAYABLE_SENTENCE_ROLES.has(output.sentence_role)
   ) {
-    return review("non_displayable_role_needs_review", { candidate, output });
-  }
-
-  if (
-    !hasStanceAction(candidate.text) &&
-    output.stance_clarity !== "clear" &&
-    !output.stance_action
-  ) {
-    return review("weak_stance_signal", { candidate, output });
-  }
-
-  if (output.selected_mode === "sentence_only") {
-    if (output.display_sentence !== candidate.text) {
-      return review("sentence_only_display_must_equal_candidate", {
-        candidate,
-        output,
-      });
-    }
-
-    return selected(candidate, candidate.text);
-  }
-
-  if (!output.topic_label) {
-    return review("missing_topic_label", { candidate, output });
-  }
-
-  if (!isGroundedLabelCandidate(output.topic_label, output.display_sentence)) {
-    return review("display_sentence_must_start_with_topic_label", {
+    return review("non_displayable_role_needs_review", {
       candidate,
+      displaySentence,
       output,
     });
   }
 
-  if (!includesNormalized(output.display_sentence, candidate.text)) {
-    return review("display_sentence_must_include_candidate", {
+  if (!displaySentence) {
+    return review("missing_display_sentence", {
       candidate,
+      displaySentence,
       output,
     });
   }
 
-  return selected(candidate, output.display_sentence);
+  const unusableDisplayReason = getDisplayTextRejectReason(displaySentence);
+
+  if (unusableDisplayReason) {
+    return review(`display_${unusableDisplayReason}`, {
+      candidate,
+      displaySentence,
+      output,
+    });
+  }
+
+  if (hasDisplayPostprocessResidue(displaySentence)) {
+    return review("display_postprocess_residue", {
+      candidate,
+      displaySentence,
+      output,
+    });
+  }
+
+  if (!isGroundedDisplaySentence({ candidates, displaySentence, row })) {
+    return review("display_sentence_not_grounded", {
+      candidate,
+      displaySentence,
+      output,
+    });
+  }
+
+  return selected({ candidate, displaySentence, output });
 }
 
-function selected(
-  candidate: StatementSentenceSelectionCandidate,
-  displaySentence: string,
-): ValidationResult {
+function selected({
+  candidate,
+  displaySentence,
+  output,
+}: {
+  candidate: StatementDisplayCandidate | null;
+  displaySentence: string;
+  output: StatementDisplayComparatorOutput;
+}): ValidationResult {
   return {
     candidate,
-    coreSentence: candidate.text,
+    coreSentence: finalizeDisplaySentence(
+      output.core_sentence ?? candidate?.text ?? displaySentence,
+    ),
     displaySentence,
     errorMessage: null,
     status: "selected",
@@ -146,25 +166,33 @@ function review(
   errorMessage: string,
   {
     candidate,
+    displaySentence,
     output,
   }: {
-    candidate: StatementSentenceSelectionCandidate | null;
+    candidate: StatementDisplayCandidate | null;
+    displaySentence: string | null;
     output: StatementDisplayComparatorOutput;
   },
 ): ValidationResult {
   return {
     candidate,
-    coreSentence: candidate?.text ?? output.core_sentence,
-    displaySentence: output.display_sentence,
+    coreSentence: output.core_sentence
+      ? finalizeDisplaySentence(output.core_sentence)
+      : candidate?.text ?? null,
+    displaySentence,
     errorMessage,
     status: "review_needed",
   };
 }
 
 function findSelectedCandidate(
-  candidates: StatementSentenceSelectionCandidate[],
-  selectedSentenceId: string | null,
+  candidates: StatementDisplayCandidate[],
+  output: StatementDisplayComparatorOutput,
 ) {
+  const selectedSentenceId =
+    output.selected_sentence_id ??
+    getPrimarySourceIdForChosenCandidate(output);
+
   if (!selectedSentenceId) {
     return null;
   }
@@ -174,21 +202,52 @@ function findSelectedCandidate(
   );
 }
 
-function isGroundedLabelCandidate(label: string, displaySentence: string) {
-  const normalizedLabel = normalizeComparableText(label);
-  const normalizedDisplay = normalizeComparableText(displaySentence);
+function getPrimarySourceIdForChosenCandidate(
+  output: StatementDisplayComparatorOutput,
+) {
+  if (output.chosen_candidate === "A") {
+    return output.candidate_a_source_ids[0] ?? null;
+  }
 
-  return (
-    normalizedLabel.length >= 2 &&
-    normalizedLabel.length <= 40 &&
-    normalizedDisplay.startsWith(normalizedLabel)
+  if (output.chosen_candidate === "C") {
+    return output.candidate_c_source_ids[0] ?? null;
+  }
+
+  return null;
+}
+
+function isGroundedDisplaySentence({
+  candidates,
+  displaySentence,
+  row,
+}: {
+  candidates: StatementDisplayCandidate[];
+  displaySentence: string;
+  row: StatementDisplaySourceRow;
+}) {
+  const sourceTexts = [
+    row.title ?? "",
+    row.textSnapshot,
+    ...candidates.map((candidate) => candidate.text),
+  ]
+    .map(normalizeGroundingText)
+    .filter(Boolean);
+  const pieces = splitDisplayIntoGroundingPieces(displaySentence)
+    .map(normalizeGroundingText)
+    .filter((piece) => piece.length >= 6);
+
+  if (pieces.length === 0) {
+    return false;
+  }
+
+  return pieces.every((piece) =>
+    sourceTexts.some((sourceText) => sourceText.includes(piece)),
   );
 }
 
-function includesNormalized(container: string, value: string) {
-  return normalizeComparableText(container).includes(normalizeComparableText(value));
-}
-
-function normalizeComparableText(value: string) {
-  return value.replace(/\s+/g, " ").trim();
+function splitDisplayIntoGroundingPieces(text: string) {
+  return text
+    .split(/(?<=[.!?。！？…])\s+/u)
+    .map((piece) => piece.trim())
+    .filter(Boolean);
 }

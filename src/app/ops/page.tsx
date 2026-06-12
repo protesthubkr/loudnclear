@@ -12,8 +12,10 @@ import {
   formatSourceType,
   getOpsDashboardData,
   type DataSourceRow,
+  type DisplayDecisionReviewRow,
   type SourceHealthStatus,
 } from "./ops-data";
+import { reviewStatementDisplayDecisionAction } from "./actions";
 import { SITE_NAME } from "../site";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +49,8 @@ export default async function OpsPage() {
   const {
     dataSources,
     dataSourceHealthCounts,
+    displayDecisionCounts,
+    displayDecisionReviewRows,
     partyCounts,
     recentPartyTopics,
     recentProblems,
@@ -65,7 +69,10 @@ export default async function OpsPage() {
       <header className="ops-header">
         <p className="ops-kicker">{SITE_NAME}</p>
         <h1>운영 점검</h1>
-        <p>데이터 소스, 수집, 추출, 토픽 게이트를 빠르게 확인합니다.</p>
+        <p>
+          데이터 소스, 수집, 추출, 토픽 게이트를 빠르게 확인합니다.{" "}
+          <a href="/ops/evals">문장 실험실</a>
+        </p>
       </header>
 
       <section
@@ -79,6 +86,25 @@ export default async function OpsPage() {
         />
         <StatusCard label="대기/미확인" value={dataSourceHealthCounts.unknown} />
         <StatusCard label="비활성" value={dataSourceHealthCounts.inactive} />
+      </section>
+
+      <section
+        className="ops-grid ops-grid--summary"
+        aria-label="문장 결정 상태 요약"
+      >
+        <StatusCard
+          label="문장 selected"
+          value={displayDecisionCounts.selected}
+        />
+        <StatusCard
+          label="문장 review"
+          value={displayDecisionCounts.review_needed}
+        />
+        <StatusCard
+          label="문장 rejected"
+          value={displayDecisionCounts.rejected}
+        />
+        <StatusCard label="문장 failed" value={displayDecisionCounts.failed} />
       </section>
 
       <section className="ops-grid ops-grid--summary" aria-label="상태 요약">
@@ -97,6 +123,50 @@ export default async function OpsPage() {
       </section>
 
       <section className="ops-grid">
+        <OpsPanel title="문장 검토 큐">
+          <OpsTable
+            emptyText="검토가 필요한 문장이 없습니다."
+            headers={[
+              "상태",
+              "출처",
+              "단체",
+              "노출 문장",
+              "오류/판단",
+              "후보",
+            ]}
+            rows={displayDecisionReviewRows.map((row) => [
+              <StatusPill
+                key="status"
+                label={formatDisplayDecisionStatus(row.final_status)}
+                value={row.final_status}
+              />,
+              formatSourceType(row.source_type),
+              <a
+                className="ops-table-link"
+                href={row.source_url}
+                key="source"
+                rel="noreferrer"
+                target="_blank"
+              >
+                <span className="ops-source-cell">
+                  <strong>{row.organization_name}</strong>
+                  <span>{row.source_key}</span>
+                  <span>{formatDateTime(row.display_at)}</span>
+                </span>
+              </a>,
+              <span className="ops-review-sentence" key="sentence">
+                {row.display_sentence ?? row.core_sentence ?? "-"}
+              </span>,
+              <span className="ops-review-reason" key="reason">
+                <strong>{row.last_error ?? "review_needed"}</strong>
+                <span>{row.comparator_reason ?? "-"}</span>
+                <span>{formatDisplayDecisionMeta(row)}</span>
+              </span>,
+              <DisplayDecisionDetails key="details" row={row} />,
+            ])}
+          />
+        </OpsPanel>
+
         <OpsPanel title="점검 대상 데이터 소스">
           <OpsList
             emptyText="현재 점검 대상 데이터 소스가 없습니다."
@@ -237,6 +307,85 @@ function formatSourceStatus(status: string) {
     default:
       return status;
   }
+}
+
+function DisplayDecisionDetails({ row }: { row: DisplayDecisionReviewRow }) {
+  return (
+    <details className="ops-review-details">
+      <summary>보기</summary>
+      <dl>
+        <div>
+          <dt>제목</dt>
+          <dd>{row.title ?? "-"}</dd>
+        </div>
+        <div>
+          <dt>A 후보</dt>
+          <dd>{row.candidate_a_sentence ?? "-"}</dd>
+        </div>
+        <div>
+          <dt>C 후보</dt>
+          <dd>{row.candidate_c_sentence ?? "-"}</dd>
+        </div>
+        <div>
+          <dt>core</dt>
+          <dd>{row.core_sentence ?? "-"}</dd>
+        </div>
+        <div>
+          <dt>갱신</dt>
+          <dd>{formatDateTime(row.updated_at)}</dd>
+        </div>
+      </dl>
+      <form action={reviewStatementDisplayDecisionAction}>
+        <input name="decisionId" type="hidden" value={row.id} />
+        <button
+          disabled={!row.candidate_a_sentence}
+          name="choice"
+          type="submit"
+          value="A"
+        >
+          A 선택
+        </button>
+        <button
+          disabled={!row.candidate_c_sentence}
+          name="choice"
+          type="submit"
+          value="C"
+        >
+          C 선택
+        </button>
+        <button name="choice" type="submit" value="reject">
+          기각
+        </button>
+      </form>
+    </details>
+  );
+}
+
+function formatDisplayDecisionStatus(
+  status: DisplayDecisionReviewRow["final_status"],
+) {
+  switch (status) {
+    case "failed":
+      return "실패";
+    case "rejected":
+      return "제외";
+    case "review_needed":
+      return "검토";
+    case "selected":
+      return "선택";
+  }
+}
+
+function formatDisplayDecisionMeta(row: DisplayDecisionReviewRow) {
+  return [
+    row.selected_mode,
+    row.sentence_role,
+    row.subject_clarity,
+    row.stance_clarity,
+    row.confidence === null ? null : `C ${row.confidence}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function formatRecentSourceCounts(source: DataSourceRow) {

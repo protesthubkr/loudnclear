@@ -14,8 +14,8 @@ import { buildStatementDisplayDecisionPrompt } from "./prompts";
 import { STATEMENT_DISPLAY_DECISION_SCHEMA } from "./schemas";
 import type {
   StatementDisplayComparatorOutput,
-  StatementSentenceSelectionCandidate,
-  StatementSentenceSelectionRow,
+  StatementDisplayCandidate,
+  StatementDisplaySourceRow,
 } from "./types";
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
@@ -24,8 +24,8 @@ export async function compareStatementDisplayDecisionWithLlm({
   candidates,
   row,
 }: {
-  candidates: StatementSentenceSelectionCandidate[];
-  row: StatementSentenceSelectionRow;
+  candidates: StatementDisplayCandidate[];
+  row: StatementDisplaySourceRow;
 }) {
   const model = getStatementDisplayDecisionModel();
   const output = await requestStructuredOutput<StatementDisplayComparatorOutput>({
@@ -113,6 +113,16 @@ function sanitizeComparatorOutput(
   output: StatementDisplayComparatorOutput,
 ): StatementDisplayComparatorOutput {
   return {
+    candidate_a_sentence: normalizeNullableString(output.candidate_a_sentence),
+    candidate_a_source_ids: normalizeSourceIds(output.candidate_a_source_ids),
+    candidate_c_sentence: normalizeNullableString(output.candidate_c_sentence),
+    candidate_c_source_ids: normalizeSourceIds(output.candidate_c_source_ids),
+    chosen_candidate:
+      output.chosen_candidate === "A" ||
+      output.chosen_candidate === "C" ||
+      output.chosen_candidate === "none"
+        ? output.chosen_candidate
+        : "none",
     confidence: normalizeConfidence(output.confidence),
     core_sentence: normalizeNullableString(output.core_sentence),
     display_sentence: normalizeNullableString(output.display_sentence),
@@ -130,7 +140,17 @@ function sanitizeComparatorOutput(
 }
 
 function normalizeSelectedSentenceId(value: string | null) {
-  return value?.match(/[TB]\d+/i)?.[0].toUpperCase() ?? null;
+  return value?.match(/[TLB]\d+/i)?.[0].toUpperCase() ?? null;
+}
+
+function normalizeSourceIds(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => normalizeSelectedSentenceId(String(item)))
+    .filter((item): item is string => Boolean(item));
 }
 
 function normalizeConfidence(value: number) {

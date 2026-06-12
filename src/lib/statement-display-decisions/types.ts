@@ -1,9 +1,48 @@
-import type {
-  StatementSentenceRole,
-  StatementSentenceSelectionCandidate,
-  StatementSentenceSelectionRow,
-  StatementSentenceSelectionSourceType,
-} from "@/lib/statement-sentence-selections/types";
+import type { TelegramStatementDocumentType } from "@/lib/telegram-statements/types";
+
+export type StatementDisplayDecisionSourceType =
+  | "telegram"
+  | "party"
+  | "web"
+  | "x";
+
+export type StatementDisplaySentenceRole =
+  | "demand"
+  | "condemnation"
+  | "criticism"
+  | "welcome"
+  | "concern"
+  | "pledge"
+  | "context"
+  | "notice"
+  | "tribute"
+  | "resource_intro";
+
+export type StatementDisplayCandidate = {
+  id: string;
+  kind: "title" | "lead" | "sentence" | "clause";
+  rank: number;
+  section: "title" | "lead" | "body";
+  text: string;
+};
+
+export type StatementDisplaySourceRow = {
+  id: string;
+  sourceType: StatementDisplayDecisionSourceType;
+  sourceSummaryId: string;
+  sourceKey: string;
+  organizationName: string;
+  sourceUrl: string;
+  title: string | null;
+  documentType: TelegramStatementDocumentType;
+  currentStatus: string;
+  currentCoreSentence: string | null;
+  currentExtractionConfidence: number | null;
+  currentExtractionReason: string | null;
+  currentModel: string | null;
+  displayAt: string | null;
+  textSnapshot: string;
+};
 
 export type StatementDisplayDecisionMode =
   | "sentence_only"
@@ -28,6 +67,11 @@ export type StatementDisplayDecisionStanceClarity =
   | "missing";
 
 export type StatementDisplayComparatorOutput = {
+  candidate_a_sentence: string | null;
+  candidate_a_source_ids: string[];
+  candidate_c_sentence: string | null;
+  candidate_c_source_ids: string[];
+  chosen_candidate: "A" | "C" | "none";
   confidence: number;
   core_sentence: string | null;
   display_sentence: string | null;
@@ -35,7 +79,7 @@ export type StatementDisplayComparatorOutput = {
   reason: string;
   selected_mode: StatementDisplayDecisionMode;
   selected_sentence_id: string | null;
-  sentence_role: StatementSentenceRole | null;
+  sentence_role: StatementDisplaySentenceRole | null;
   stance_action: string | null;
   stance_clarity: StatementDisplayDecisionStanceClarity;
   subject_clarity: StatementDisplayDecisionSubjectClarity;
@@ -49,7 +93,7 @@ export type StatementDisplayDecision = {
   coreSentence: string | null;
   displaySentence: string | null;
   errorMessage: string | null;
-  selectedCandidate: StatementSentenceSelectionCandidate | null;
+  selectedCandidate: StatementDisplayCandidate | null;
   status: StatementDisplayDecisionFinalStatus;
 };
 
@@ -58,7 +102,7 @@ export type StatementDisplayDecisionRunOptions = {
   force?: boolean;
   limit?: number;
   retryFailed?: boolean;
-  sourceType?: StatementSentenceSelectionSourceType;
+  sourceType?: StatementDisplayDecisionSourceType;
   summaryId?: string;
   windowHours?: number;
 };
@@ -74,7 +118,7 @@ export type StatementDisplayDecisionOutcome = {
   selectedSentence?: string | null;
   sourceKey: string;
   sourceSummaryId: string;
-  sourceType: StatementSentenceSelectionSourceType;
+  sourceType: StatementDisplayDecisionSourceType;
   status:
     | "preview"
     | StatementDisplayDecisionFinalStatus
@@ -100,12 +144,6 @@ export type StatementDisplayFeedDecision = {
   coreSentence: string;
   displaySentence: string;
   sourceSummaryId: string;
-  sourceType: StatementSentenceSelectionSourceType;
+  sourceType: StatementDisplayDecisionSourceType;
   topicLabel: string | null;
-};
-
-export type {
-  StatementSentenceSelectionCandidate,
-  StatementSentenceSelectionRow,
-  StatementSentenceSelectionSourceType,
 };
