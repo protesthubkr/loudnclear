@@ -205,7 +205,10 @@ export function StatementFeedList({
       {loadError ? (
         <p className="statement-feed-status is-error">{loadError}</p>
       ) : null}
-      <p className="statement-feed-status">문의 badplankr@gmail.com</p>
+      <p className="statement-feed-status statement-feed-status--brand">
+        by{" "}
+        <a href="https://www.badplan.kr">badplan</a>
+      </p>
     </>
   );
 }

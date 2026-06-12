@@ -767,6 +767,22 @@ a {
   color: #be123c;
 }
 
+.statement-feed-status--brand {
+  color: #000;
+  font-family: "Malgun Gothic", "맑은 고딕", sans-serif;
+  font-weight: 400;
+}
+
+.statement-feed-status--brand a {
+  color: #000;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.statement-feed-status--brand a:hover {
+  text-decoration: underline;
+}
+
 .ops-shell {
   width: min(100%, 1120px);
   min-height: 100vh;
