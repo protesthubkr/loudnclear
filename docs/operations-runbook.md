@@ -80,6 +80,7 @@ eval lab은 run/output 단위의 `estimated_input_tokens`, `estimated_output_tok
 - 무지개행동: `https://rainbowaction.kr/`
 - 기후정의동맹: `https://www.climatejusticealliance.kr`
 - 기후위기비상: `http://climate-strike.kr/feed/`
+- 빈곤사회연대: `http://antipoverty.kr/xe/announce`
 
 X API ingest cron은 중지되어 있으며, 공개 피드와 confirmed topic 입력에도 X summary를 사용하지 않는다. 기존 X 테이블과 수동 route는 과거 기록 점검용으로만 남긴다.
 

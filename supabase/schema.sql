@@ -601,6 +601,13 @@ values
     'http://climate-strike.kr/press/',
     'http://climate-strike.kr/feed/',
     true
+  ),
+  (
+    'antipoverty',
+    '빈곤사회연대',
+    'http://antipoverty.kr/xe/announce',
+    'http://antipoverty.kr/xe/announce',
+    true
   )
 on conflict (source_key) do update
 set

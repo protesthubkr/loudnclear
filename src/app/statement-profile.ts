@@ -101,6 +101,11 @@ const STATEMENT_PROFILES = [
     logoSrc: "/climatestrike-logo.jpg",
     patterns: ["기후위기비상", "기후위기 비상행동", "climatestrikekr", "climate-strike"],
   },
+  {
+    label: "빈곤사회연대",
+    logoSrc: "/antipov-logo.png",
+    patterns: ["빈곤사회연대", "antipoverty", "antipoverty.kr"],
+  },
 ] satisfies Array<StatementProfile & { patterns: string[] }>;
 
 const PARTY_STATEMENT_LOGO_SRCS = new Set([

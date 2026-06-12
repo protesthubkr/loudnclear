@@ -1,6 +1,7 @@
 import type { TelegramStatementDocumentType } from "@/lib/telegram-statements/types";
 
 export type WebStatementSourceKey =
+  | "antipoverty"
   | "climateall"
   | "climatestrikekr"
   | "equalact"

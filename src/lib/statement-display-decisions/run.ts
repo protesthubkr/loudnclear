@@ -24,6 +24,7 @@ import type {
 } from "./types";
 import { getRowsForStatementDisplayDecision } from "./source-rows";
 import { validateStatementDisplayDecision } from "./validation";
+import { clearPublicStatementFeedWindowCache } from "@/lib/telegram-statements/public-feed";
 
 export type {
   StatementDisplayDecisionOutcome,
@@ -133,6 +134,10 @@ export async function runStatementDisplayDecisionPipeline(
       selectedSentence: decision.coreSentence,
       topicLabel: decision.comparatorOutput?.topic_label ?? null,
     });
+  }
+
+  if (!dryRun && result.outcomes.some((outcome) => outcome.status !== "skipped_existing")) {
+    clearPublicStatementFeedWindowCache();
   }
 
   return result;

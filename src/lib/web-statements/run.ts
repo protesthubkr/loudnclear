@@ -287,6 +287,7 @@ export function isWebStatementSourceKey(
   value: string,
 ): value is WebStatementSourceKey {
   return (
+    value === "antipoverty" ||
     value === "climateall" ||
     value === "climatestrikekr" ||
     value === "equalact" ||

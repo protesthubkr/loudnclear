@@ -6,14 +6,19 @@ const HASH_TAG_RE = /#[^\s#]+/g;
 const LEADING_ANGLE_LABEL_RE = /^\s*(?:<[^>\r\n]{1,40}>\s*)+/;
 const LEADING_BULLET_RE = /^\s*(?:[>*\-•·◈◇◆△▲▶]+\s*|\d+[.)]\s+)/u;
 const META_LABEL_KEYWORD_PATTERN = [
+  "성\\s*명",
   "성명",
   "성명서",
   "공동성명",
   "긴급성명",
+  "연대성명",
   "논평",
   "브리핑",
   "보도자료",
+  "후속\\s*보도자료",
   "보도참고자료",
+  "취재\\s*요청",
+  "취재요청",
   "기자회견",
   "기자회견문",
   "입장",
@@ -39,7 +44,7 @@ const ANY_BRACKET_META_RE = new RegExp(
 );
 const ANY_BRACKET_META_RESIDUE_RE = new RegExp(BRACKET_META_PATTERN, "u");
 const LEADING_PLAIN_LABEL_RE =
-  /^\s*(?:(?:성명|성명서|논평|브리핑|보도자료|기자회견문|입장문)\s*[:|]\s*)+/u;
+  /^\s*(?:(?:성\s*명|성명|성명서|논평|브리핑|보도자료|후속\s*보도자료|취재\s*요청|취재요청|기자회견|기자회견문|입장문)\s*[:|]\s*)+/u;
 const TRAILING_BYLINE_RE =
   /\s*(?:[|·\-–—]\s*)?[\p{Script=Hangul}]{2,5}\s*(?:대변인|부대변인|원내대변인|수석대변인|원내수석대변인|공보단장|공보국장)\s*$/u;
 const SUBTITLE_DASH_RE = /\s+[-–—]\s+([^-–—\r\n]{8,140})\s+[-–—]\s*$/u;

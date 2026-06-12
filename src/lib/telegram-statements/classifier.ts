@@ -13,7 +13,7 @@ const DOCUMENT_PATTERNS: Array<{
   { documentType: "commentary", pattern: /논평|논평문/, reason: "keyword:commentary" },
   { documentType: "statement", pattern: /성명|성명서/, reason: "keyword:statement" },
   { documentType: "position", pattern: /입장문|공식\s*입장|입장을\s*밝힌다/, reason: "keyword:position" },
-  { documentType: "press_conference", pattern: /기자회견문|회견문|\[기자회견\]|기자회견\s*[-–—:：]/, reason: "keyword:press_conference" },
+  { documentType: "press_conference", pattern: /취재\s*요청|취재요청서|기자회견문|회견문|\[기자회견\]|기자회견\s*[-–—:：]/, reason: "keyword:press_conference" },
   { documentType: "press_release", pattern: /보도자료/, reason: "keyword:press_release" },
   { documentType: "condemnation", pattern: /규탄문|규탄\s*성명/, reason: "keyword:condemnation" },
   { documentType: "welcome", pattern: /환영문|환영\s*논평|환영\s*성명/, reason: "keyword:welcome" },

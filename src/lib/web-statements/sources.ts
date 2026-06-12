@@ -1,3 +1,4 @@
+import { ANTIPOVERTY_WEB_STATEMENT_SOURCE } from "./sources/antipoverty";
 import { CLIMATEALL_WEB_STATEMENT_SOURCE } from "./sources/climateall";
 import { CLIMATESTRIKE_WEB_STATEMENT_SOURCE } from "./sources/climatestrike";
 import { EQUALITYACT_WEB_STATEMENT_SOURCE } from "./sources/equalityact";
@@ -7,6 +8,7 @@ import { WOMEN21_WEB_STATEMENT_SOURCE } from "./sources/women21";
 import type { WebStatementSourceKey, WebStatementSourceParser } from "./types";
 
 export const WEB_STATEMENT_SOURCES: WebStatementSourceParser[] = [
+  ANTIPOVERTY_WEB_STATEMENT_SOURCE,
   CLIMATEALL_WEB_STATEMENT_SOURCE,
   CLIMATESTRIKE_WEB_STATEMENT_SOURCE,
   EQUALITYACT_WEB_STATEMENT_SOURCE,
