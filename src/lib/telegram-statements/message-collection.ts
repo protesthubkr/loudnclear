@@ -11,6 +11,7 @@ import {
   shouldStopScanningPage,
   type TelegramStatementCursorMessage,
 } from "./scan-cursor";
+import { waitForTelegramStatementPageDelay } from "./run-config";
 import type {
   TelegramStatementFeedSubscription,
   TelegramStatementScanState,
@@ -23,10 +24,12 @@ export type TelegramStatementMessageCollection = {
 
 export async function collectBackfillTelegramStatementMessages({
   cutoffIso,
+  enablePacing,
   maxPagesPerChannel,
   subscription,
 }: {
   cutoffIso: string;
+  enablePacing: boolean;
   maxPagesPerChannel: number;
   subscription: TelegramStatementFeedSubscription;
 }): Promise<TelegramStatementMessageCollection> {
@@ -62,6 +65,10 @@ export async function collectBackfillTelegramStatementMessages({
     if (!beforeMessageId) {
       break;
     }
+
+    if (enablePacing && pageIndex < maxPagesPerChannel - 1) {
+      await waitForTelegramStatementPageDelay();
+    }
   }
 
   return {
@@ -87,9 +94,11 @@ function isAtOrAfterCutoff(value: string | null, cutoffIso: string) {
 
 export async function collectNewTelegramStatementMessages({
   maxPagesPerChannel,
+  enablePacing,
   state,
   subscription,
 }: {
+  enablePacing: boolean;
   maxPagesPerChannel: number;
   state: TelegramStatementScanState | null;
   subscription: TelegramStatementFeedSubscription;
@@ -134,6 +143,10 @@ export async function collectNewTelegramStatementMessages({
 
     if (!beforeMessageId) {
       break;
+    }
+
+    if (enablePacing && pageIndex < maxPagesPerChannel - 1) {
+      await waitForTelegramStatementPageDelay();
     }
   }
 

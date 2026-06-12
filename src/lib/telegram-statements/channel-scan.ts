@@ -65,10 +65,12 @@ export async function scanTelegramStatementChannel({
     const scan = backfill
       ? await collectBackfillTelegramStatementMessages({
           cutoffIso: cutoffIso ?? new Date(0).toISOString(),
+          enablePacing: !dryRun,
           maxPagesPerChannel,
           subscription,
         })
       : await collectNewTelegramStatementMessages({
+          enablePacing: !dryRun,
           maxPagesPerChannel,
           state,
           subscription,

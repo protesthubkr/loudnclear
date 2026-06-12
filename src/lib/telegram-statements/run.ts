@@ -7,7 +7,11 @@ import {
   getRequiredSupabaseAdminClient,
   getStatementFeedSubscriptions,
 } from "./repository";
-import { getMaxPagesPerChannel, getWindowHours } from "./run-config";
+import {
+  getMaxPagesPerChannel,
+  getWindowHours,
+  waitForTelegramStatementChannelDelay,
+} from "./run-config";
 import type {
   TelegramStatementRunOptions,
   TelegramStatementScanResult,
@@ -47,7 +51,8 @@ export async function runTelegramStatementFeedScan(
       supabase,
     });
 
-    for (const subscription of subscriptions) {
+    for (let index = 0; index < subscriptions.length; index += 1) {
+      const subscription = subscriptions[index];
       const channelResult = await scanTelegramStatementChannel({
         backfill,
         cutoffIso,
@@ -77,6 +82,10 @@ export async function runTelegramStatementFeedScan(
       totals.candidateMatches += channelResult.candidateMatches;
       totals.messagesSeen += channelResult.messagesSeen;
       totals.messagesWritten += channelResult.messagesWritten;
+
+      if (!dryRun && index < subscriptions.length - 1) {
+        await waitForTelegramStatementChannelDelay();
+      }
     }
 
     const channelFailureMessage = getChannelFailureMessage(totals);

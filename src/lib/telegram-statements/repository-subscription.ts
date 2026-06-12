@@ -11,6 +11,8 @@ const STATEMENT_FEED_SUBSCRIPTION_SELECT = [
   "last_checked_message_at",
 ].join(",");
 
+const SUBSCRIPTION_ROTATION_INTERVAL_MS = 60 * 60 * 1000;
+
 export async function getStatementFeedSubscriptions({
   channelUsername,
   supabase,
@@ -35,9 +37,10 @@ export async function getStatementFeedSubscriptions({
     throw new Error(error.message);
   }
 
-  return ((data as unknown as StatementFeedSubscriptionRow[] | null) ?? []).map(
-    mapSubscriptionRow,
-  );
+  const subscriptions = ((data as unknown as StatementFeedSubscriptionRow[] | null) ?? [])
+    .map(mapSubscriptionRow);
+
+  return channelUsername ? subscriptions : rotateSubscriptions(subscriptions);
 }
 
 function mapSubscriptionRow(
@@ -49,4 +52,20 @@ function mapSubscriptionRow(
     lastCheckedMessageAt: row.last_checked_message_at,
     lastCheckedMessageId: row.last_checked_message_id,
   };
+}
+
+function rotateSubscriptions(subscriptions: TelegramStatementFeedSubscription[]) {
+  if (subscriptions.length <= 1) {
+    return subscriptions;
+  }
+
+  const offset =
+    Math.floor(Date.now() / SUBSCRIPTION_ROTATION_INTERVAL_MS) %
+    subscriptions.length;
+
+  if (offset === 0) {
+    return subscriptions;
+  }
+
+  return [...subscriptions.slice(offset), ...subscriptions.slice(0, offset)];
 }
