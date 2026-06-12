@@ -768,6 +768,7 @@ a {
 }
 
 .statement-feed-status--brand {
+  margin-top: -10px;
   color: #000;
   font-family: "Malgun Gothic", "맑은 고딕", sans-serif;
   font-weight: 400;
