@@ -13,6 +13,7 @@ import {
   getExistingStatementDisplayDecisionKeys,
   getFailedStatementDisplayDecisionKeys,
   getRequiredStatementDisplayDecisionSupabaseClient,
+  promoteSelectedStatementDisplaySourceSummary,
   upsertStatementDisplayDecision,
 } from "./repository";
 import type {
@@ -115,6 +116,12 @@ export async function runStatementDisplayDecisionPipeline(
     });
 
     if (decision.status === "selected") {
+      await promoteSelectedStatementDisplaySourceSummary({
+        comparatorPromptVersion: STATEMENT_DISPLAY_DECISION_PROMPT_VERSION,
+        decision,
+        row,
+        supabase,
+      });
       result.selected += 1;
     } else if (decision.status === "rejected") {
       result.rejected += 1;

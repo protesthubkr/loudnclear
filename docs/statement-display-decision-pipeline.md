@@ -5,7 +5,7 @@
 `core_sentence` extraction is no longer the final public-feed decision. The
 canonical public display text is produced by `statement_display_decisions`.
 
-As of `statement_display_decision_v2_ac_judge`, the display decision step is an
+As of `statement_display_decision_v3_ac_judge`, the display decision step is an
 A/C comparison system based on manual eval feedback.
 
 ## Current Design

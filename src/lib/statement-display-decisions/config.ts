@@ -5,7 +5,7 @@ const DEFAULT_REASONING_EFFORT = "medium";
 const DEFAULT_WINDOW_HOURS = 240;
 
 export const STATEMENT_DISPLAY_DECISION_PROMPT_VERSION =
-  "statement_display_decision_v2_ac_judge";
+  "statement_display_decision_v3_ac_judge";
 export const STATEMENT_DISPLAY_DECISION_REASONING_ENV_KEY =
   "OPENAI_STATEMENT_DISPLAY_DECISION_REASONING_EFFORT";
 

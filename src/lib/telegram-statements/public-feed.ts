@@ -1,20 +1,13 @@
+import { revalidateTag, unstable_cache } from "next/cache";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import {
   compareStatementItemsNewestFirst,
   compareStatementItemsOldestFirst,
 } from "./public-feed-time";
 import {
-  hasPublicPartyStatementItemsBefore,
-  getPublicPartyStatementItems,
-} from "./public-feed-party";
-import {
-  getPublicTelegramStatementItems,
-  hasPublicTelegramStatementItemsBefore,
-} from "./public-feed-telegram";
-import {
-  getPublicWebStatementItems,
-  hasPublicWebStatementItemsBefore,
-} from "./public-feed-web";
+  getPublicStatementFeedItemsFromRpc,
+  hasPublicStatementFeedItemsBeforeFromRpc,
+} from "./public-feed-rpc";
 import type { PublicStatementFeedItem } from "./public-feed-types";
 
 type PublicStatementFeedQuery = {
@@ -29,6 +22,8 @@ type PublicStatementFeedWindowData = {
 };
 
 const PUBLIC_FEED_WINDOW_CACHE_TTL_MS = 60_000;
+const PUBLIC_FEED_WINDOW_REVALIDATE_SECONDS = 60;
+const PUBLIC_FEED_WINDOW_CACHE_TAG = "public-statement-feed-window";
 const publicFeedWindowCache = new Map<
   string,
   {
@@ -49,15 +44,17 @@ export async function getPublicStatementFeedWindow(
     return cached.promise;
   }
 
-  const promise = loadPublicStatementFeedWindow(normalizedQuery).catch(
-    (error: unknown) => {
+  const promise = loadCachedPublicStatementFeedWindow(
+    normalizedQuery.fromIso ?? "",
+    normalizedQuery.toIso ?? "",
+    normalizedQuery.limit,
+  ).catch((error: unknown) => {
       if (publicFeedWindowCache.get(cacheKey)?.promise === promise) {
         publicFeedWindowCache.delete(cacheKey);
       }
 
       throw error;
-    },
-  );
+    });
 
   publicFeedWindowCache.set(cacheKey, {
     expiresAt: now + PUBLIC_FEED_WINDOW_CACHE_TTL_MS,
@@ -71,7 +68,22 @@ export async function getPublicStatementFeedWindow(
 
 export function clearPublicStatementFeedWindowCache() {
   publicFeedWindowCache.clear();
+  revalidateTag(PUBLIC_FEED_WINDOW_CACHE_TAG, "max");
 }
+
+const loadCachedPublicStatementFeedWindow = unstable_cache(
+  async (fromIso: string, toIso: string, limit: number) =>
+    loadPublicStatementFeedWindow({
+      fromIso: fromIso || undefined,
+      limit,
+      toIso: toIso || undefined,
+    }),
+  ["public-statement-feed-window"],
+  {
+    revalidate: PUBLIC_FEED_WINDOW_REVALIDATE_SECONDS,
+    tags: [PUBLIC_FEED_WINDOW_CACHE_TAG],
+  },
+);
 
 async function loadPublicStatementFeedWindow(
   query: Required<Pick<PublicStatementFeedQuery, "limit">> &
@@ -86,41 +98,17 @@ async function loadPublicStatementFeedWindow(
     };
   }
 
-  const partyItemsPromise = getPublicPartyStatementItems(query);
-  const hasPartyItemsBeforePromise = query.fromIso
-    ? hasPublicPartyStatementItemsBefore(query.fromIso)
-    : Promise.resolve(false);
-  const [
-    telegramItems,
-    partyItems,
-    webItems,
-    hasTelegramItemsBefore,
-    hasPartyItemsBefore,
-    hasWebItemsBefore,
-  ] = await Promise.all([
-      getPublicTelegramStatementItems(query),
-      partyItemsPromise,
-      getPublicWebStatementItems(query),
-      query.fromIso
-        ? hasPublicTelegramStatementItemsBefore(query.fromIso)
-        : Promise.resolve(false),
-      hasPartyItemsBeforePromise,
-      query.fromIso
-        ? hasPublicWebStatementItemsBefore(query.fromIso)
-        : Promise.resolve(false),
-    ]);
+  const [items, hasMoreBefore] = await Promise.all([
+    getPublicStatementFeedItemsFromRpc({ query, supabase }),
+    hasPublicStatementFeedItemsBeforeFromRpc({
+      beforeIso: query.fromIso,
+      supabase,
+    }),
+  ]);
 
   return {
-    hasMoreBefore:
-      hasTelegramItemsBefore ||
-      hasPartyItemsBefore ||
-      hasWebItemsBefore,
-    items: mergePublicStatementFeedItems(
-      telegramItems,
-      partyItems,
-      webItems,
-      query.limit,
-    ),
+    hasMoreBefore,
+    items: mergePublicStatementFeedItems(items, query.limit),
   };
 }
 
@@ -135,12 +123,10 @@ function normalizePublicStatementFeedQuery(
 }
 
 function mergePublicStatementFeedItems(
-  telegramItems: PublicStatementFeedItem[],
-  partyItems: PublicStatementFeedItem[],
-  webItems: PublicStatementFeedItem[],
+  items: PublicStatementFeedItem[],
   limit: number,
 ) {
-  return [...telegramItems, ...partyItems, ...webItems]
+  return items
     .sort(compareStatementItemsNewestFirst)
     .slice(0, limit)
     .sort(compareStatementItemsOldestFirst);

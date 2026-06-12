@@ -1,3 +1,5 @@
+import { TELEGRAM_STATEMENT_EXTRACTION_PROMPT_VERSION } from "./extraction-schema";
+
 const DEFAULT_STATEMENT_EXTRACTION_MAX_OUTPUT_TOKENS = 1200;
 const DEFAULT_STATEMENT_COMPACTION_MAX_OUTPUT_TOKENS = 400;
 const DEFAULT_STATEMENT_EXTRACTION_INPUT_CHARS = 3000;
@@ -5,6 +7,7 @@ const DEFAULT_STATEMENT_COMPACTION_INPUT_CHARS = 2500;
 const DEFAULT_STATEMENT_EXTRACTION_LIMIT = 10;
 const DEFAULT_STATEMENT_EXTRACTION_MAX_ATTEMPTS = 3;
 const DEFAULT_STATEMENT_COMPACTION_MIN_CHARS = 60;
+let warnedPromptCacheKeyMismatch = false;
 
 export function getStatementExtractionModel() {
   return readRequiredStringEnv("OPENAI_STATEMENT_EXTRACTION_MODEL");
@@ -102,6 +105,21 @@ export function getStatementPromptCacheKey() {
 
   if (value === "off" || value === "false" || value === "0") {
     return null;
+  }
+
+  if (
+    value &&
+    value !== TELEGRAM_STATEMENT_EXTRACTION_PROMPT_VERSION &&
+    !warnedPromptCacheKeyMismatch
+  ) {
+    warnedPromptCacheKeyMismatch = true;
+    console.warn(
+      [
+        "OPENAI_STATEMENT_PROMPT_CACHE_KEY does not match",
+        `TELEGRAM_STATEMENT_EXTRACTION_PROMPT_VERSION (${TELEGRAM_STATEMENT_EXTRACTION_PROMPT_VERSION}).`,
+        "Update the env value after changing the extraction prompt.",
+      ].join(" "),
+    );
   }
 
   return value || null;

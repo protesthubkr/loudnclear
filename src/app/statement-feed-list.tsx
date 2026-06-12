@@ -15,6 +15,7 @@ import {
   type StatementFeedWindow,
 } from "@/lib/telegram-statements/public-feed-window";
 import { groupStatementItemsByDate } from "./statement-date-groups";
+import { StatementBubbleMeasurementProvider } from "./statement-bubble-measurement";
 import { mergeStatementItems } from "./statement-feed-items";
 import {
   PullLoadIndicator,
@@ -153,61 +154,63 @@ export function StatementFeedList({
           state={pullLoadState}
         />
       ) : null}
-      <section
-        aria-label="성명문 목록"
-        aria-live="polite"
-        className="statement-feed-list"
-        role="log"
-      >
-        {shouldShowLoadMoreButton ? (
-          <div className="statement-feed-load-more">
-            <button
-              aria-label="이전 7일 불러오기"
-              className={`pull-load-button is-${
-                isButtonLoading ? "loading" : "ready"
-              }`}
-              disabled={isLoadingPrevious || !hasMoreBefore}
-              onClick={() => {
-                void loadPreviousWindow("button");
-              }}
-              type="button"
-            >
-              <span aria-hidden="true" className="pull-load-mark">
-                <span className="pull-load-arrow">↓</span>
-              </span>
-              <span className="pull-load-text">
-                {isButtonLoading ? "불러오는 중" : "이전 7일 불러오기"}
-              </span>
-            </button>
-          </div>
-        ) : null}
-        {dateGroups.length > 0 ? (
-          dateGroups.map((group) => (
-            <Fragment key={group.dateKey}>
-              <div className="statement-date-divider">
-                <span>{group.label}</span>
-              </div>
-              {group.items.map((item) => (
-                <StatementFeedRow item={item} key={item.id} />
-              ))}
-            </Fragment>
-          ))
-        ) : (
-          <div className="statement-empty statement-empty--inline">
-            <h2>
-              {items.length > 0
-                ? "선택한 단체의 성명문이 없습니다"
-                : "아직 공개된 성명문이 없습니다"}
-            </h2>
-          </div>
-        )}
-      </section>
+      <StatementBubbleMeasurementProvider>
+        <section
+          aria-label="성명문 목록"
+          aria-live="polite"
+          className="statement-feed-list"
+          role="log"
+        >
+          {shouldShowLoadMoreButton ? (
+            <div className="statement-feed-load-more">
+              <button
+                aria-label="이전 7일 불러오기"
+                className={`pull-load-button is-${
+                  isButtonLoading ? "loading" : "ready"
+                }`}
+                disabled={isLoadingPrevious || !hasMoreBefore}
+                onClick={() => {
+                  void loadPreviousWindow("button");
+                }}
+                type="button"
+              >
+                <span aria-hidden="true" className="pull-load-mark">
+                  <span className="pull-load-arrow">↓</span>
+                </span>
+                <span className="pull-load-text">
+                  {isButtonLoading ? "불러오는 중" : "이전 7일 불러오기"}
+                </span>
+              </button>
+            </div>
+          ) : null}
+          {dateGroups.length > 0 ? (
+            dateGroups.map((group) => (
+              <Fragment key={group.dateKey}>
+                <div className="statement-date-divider">
+                  <span>{group.label}</span>
+                </div>
+                {group.items.map((item) => (
+                  <StatementFeedRow item={item} key={item.id} />
+                ))}
+              </Fragment>
+            ))
+          ) : (
+            <div className="statement-empty statement-empty--inline">
+              <h2>
+                {items.length > 0
+                  ? "선택한 단체의 성명문이 없습니다"
+                  : "아직 공개된 성명문이 없습니다"}
+              </h2>
+            </div>
+          )}
+        </section>
+      </StatementBubbleMeasurementProvider>
       {loadError ? (
         <p className="statement-feed-status is-error">{loadError}</p>
       ) : null}
       <p className="statement-feed-status statement-feed-status--brand">
         by{" "}
-        <a href="https://www.badplan.kr">badplan</a>
+        <a href="https://www.badplan.kr">badplan.kr</a>
       </p>
     </>
   );

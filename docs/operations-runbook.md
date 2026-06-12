@@ -57,7 +57,8 @@ telegram 수집/추출과 display decision은 공개 피드 지연을 줄이기 
 statement topic matching은 원문 `text_snapshot` embedding 기준으로 동작한다. confirmed topic은 telegram과 공식 웹사이트 web summary가 함께 형성한다. telegram/web summary는 confirmed topic 링크가 없어도 display decision이 `selected`이면 공개될 수 있고, party summary는 confirmed topic에 붙은 경우에만 공개된다.
 non-dryRun topic matching은 현재 party threshold보다 낮은 과거 matched row를 먼저 `unmatched`로 정리한다.
 web statement ingest는 기본적으로 `WEB_STATEMENT_INGEST_WINDOW_HOURS` 기간 안의 문서만 저장한다. 2026-06-01 백필처럼 더 넓은 범위가 필요할 때만 POST JSON body의 `windowHours`로 명시한다.
-statement display decision은 telegram/web 공개 여부와 party 공개 문구를 고르는 마지막 gate다. 현재 버전은 `statement_display_decision_v2_ac_judge`이며, 제목/리드 기반 A 후보와 본문 conservative C 후보를 함께 만든 뒤 사용자 선택 기준을 차용한 judge가 최종 문장을 고른다. backlog가 보이면 cron 주기보다 `STATEMENT_DISPLAY_DECISION_LIMIT`을 먼저 늘린다.
+statement display decision은 telegram/web 공개 여부와 party 공개 문구를 고르는 마지막 gate다. 현재 버전은 `statement_display_decision_v3_ac_judge`이며, 제목/리드 기반 A 후보와 본문 conservative C 후보를 함께 만든 뒤 사용자 선택 기준을 차용한 judge가 최종 문장을 고른다. selected decision이 `skipped` summary를 고르면 telegram/web/party summary를 `extracted`로 승격한다. party는 이후에도 confirmed topic gate를 통과해야 공개된다. backlog가 보이면 cron 주기보다 `STATEMENT_DISPLAY_DECISION_LIMIT`을 먼저 늘린다.
+public feed 조회는 source별 summary query를 앱에서 합치지 않고 `get_public_statement_feed_items`, `has_public_statement_feed_items_before` RPC를 사용한다. 앱 배포 전에 `20260613090000_public_statement_feed_rpc.sql` migration을 먼저 적용해야 한다.
 
 ## 문장 실험실
 

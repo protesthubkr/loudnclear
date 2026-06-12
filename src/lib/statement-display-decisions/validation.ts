@@ -23,7 +23,6 @@ type ValidationResult = {
 const NON_DISPLAYABLE_SENTENCE_ROLES = new Set<StatementDisplaySentenceRole>([
   "context",
   "notice",
-  "tribute",
   "resource_intro",
 ]);
 

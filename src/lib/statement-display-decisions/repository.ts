@@ -164,6 +164,54 @@ export async function upsertStatementDisplayDecision({
   }
 }
 
+export async function promoteSelectedStatementDisplaySourceSummary({
+  comparatorPromptVersion,
+  decision,
+  row,
+  supabase,
+}: {
+  comparatorPromptVersion: string;
+  decision: StatementDisplayDecision;
+  row: StatementDisplaySourceRow;
+  supabase: SupabaseClient;
+}) {
+  if (
+    decision.status !== "selected" ||
+    !decision.coreSentence ||
+    row.currentStatus !== "skipped"
+  ) {
+    return;
+  }
+
+  const table = getPromotableSummaryTable(row.sourceType);
+
+  if (!table) {
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from(table)
+    .update({
+      core_sentence: decision.coreSentence,
+      extracted_at: now,
+      extraction_confidence: normalizeDisplayDecisionConfidence(
+        decision.comparatorOutput?.confidence ??
+          row.currentExtractionConfidence,
+      ),
+      extraction_reason: `promoted_by_display_decision:${comparatorPromptVersion}`,
+      last_error: null,
+      status: "extracted",
+      updated_at: now,
+    })
+    .eq("id", row.sourceSummaryId)
+    .eq("status", "skipped");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 export async function getSelectedStatementDisplayDecisionMap({
   sourceType,
   summaryIds,
@@ -216,4 +264,28 @@ export function buildDisplayDecisionKey(
   sourceSummaryId: string,
 ) {
   return `${sourceType}:${sourceSummaryId}`;
+}
+
+function getPromotableSummaryTable(sourceType: StatementDisplayDecisionSourceType) {
+  if (sourceType === "telegram") {
+    return "telegram_statement_summaries";
+  }
+
+  if (sourceType === "party") {
+    return "party_statement_summaries";
+  }
+
+  if (sourceType === "web") {
+    return "web_statement_summaries";
+  }
+
+  return null;
+}
+
+function normalizeDisplayDecisionConfidence(value: number | null | undefined) {
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+
+  return Math.min(Math.max(Math.round(value as number), 0), 100);
 }

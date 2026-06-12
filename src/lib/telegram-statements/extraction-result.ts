@@ -19,6 +19,7 @@ const DISPLAYABLE_SENTENCE_ROLES = new Set<StatementSentenceRole>([
   "welcome",
   "concern",
   "pledge",
+  "tribute",
 ]);
 
 export function buildTelegramStatementExtractionResult(
