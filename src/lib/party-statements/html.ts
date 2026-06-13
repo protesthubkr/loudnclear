@@ -4,16 +4,26 @@ import { request as httpsRequest } from "https";
 
 const USER_AGENT =
   "SeongmyeongMoongBot/1.0 (+https://seongmyeongmoong.local)";
+const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
 
 export async function fetchPartyStatementHtml({
   allowInsecureTls,
   headers,
+  timeoutMs = getStatementFetchTimeoutMs(),
   url,
 }: {
   allowInsecureTls?: boolean;
   headers?: Record<string, string>;
+  timeoutMs?: number;
   url: string;
 }) {
+  const abortController = new AbortController();
+  const timeout = setTimeout(() => {
+    abortController.abort(
+      new Error(`Fetch ${url} timed out after ${timeoutMs}ms`),
+    );
+  }, timeoutMs);
+
   try {
     const response = await fetch(url, {
       cache: "no-store",
@@ -21,6 +31,7 @@ export async function fetchPartyStatementHtml({
         "user-agent": USER_AGENT,
         ...headers,
       },
+      signal: abortController.signal,
     });
 
     if (!response.ok) {
@@ -40,7 +51,9 @@ export async function fetchPartyStatementHtml({
       throw new Error(`Fetch ${url} failed: ${getFetchErrorMessage(error)}`);
     }
 
-    return fetchHtmlWithInsecureTls(url, headers);
+    return fetchHtmlWithInsecureTls(url, headers, { timeoutMs });
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -173,11 +186,13 @@ function fetchHtmlWithInsecureTls(
   options?: {
     originalHostname?: string;
     redirectCount?: number;
+    timeoutMs?: number;
   },
 ) {
   const parsedUrl = new URL(url);
   const originalHostname = options?.originalHostname ?? parsedUrl.hostname;
   const redirectCount = options?.redirectCount ?? 0;
+  const timeoutMs = options?.timeoutMs ?? getStatementFetchTimeoutMs();
 
   if (parsedUrl.protocol !== "https:" || parsedUrl.hostname !== originalHostname) {
     return Promise.reject(
@@ -227,6 +242,7 @@ function fetchHtmlWithInsecureTls(
               {
                 originalHostname,
                 redirectCount: redirectCount + 1,
+                timeoutMs,
               },
             ),
           );
@@ -254,9 +270,28 @@ function fetchHtmlWithInsecureTls(
       },
     );
 
+    request.setTimeout(timeoutMs, () => {
+      request.destroy(new Error(`Fetch ${url} timed out after ${timeoutMs}ms`));
+    });
     request.on("error", reject);
     request.end();
   });
+}
+
+function getStatementFetchTimeoutMs() {
+  const value = process.env.STATEMENT_FETCH_TIMEOUT_MS;
+
+  if (!value) {
+    return DEFAULT_FETCH_TIMEOUT_MS;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_FETCH_TIMEOUT_MS;
+  }
+
+  return Math.min(Math.max(parsed, 1_000), 60_000);
 }
 
 function getFetchErrorMessage(error: unknown) {
