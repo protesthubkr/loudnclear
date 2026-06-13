@@ -72,7 +72,7 @@ function parsePeoplePowerList(html: string) {
       {
         documentType,
         externalId,
-        publishedAt: parseKoreanDateTime(date),
+        publishedAt: applyCollectedHour(parseKoreanDateTime(date)),
         rawCategory,
         sourceKey: "people_power_party",
         sourceUrl: absoluteUrl(href, PEOPLE_POWER_LIST_URL),
@@ -106,8 +106,56 @@ function parsePeoplePowerDetail(
   return {
     ...listItem,
     organizationName: "국힘당",
-    publishedAt: parseKoreanDateTime(date) ?? listItem.publishedAt,
+    publishedAt:
+      applyCollectedHour(parseKoreanDateTime(date)) ?? listItem.publishedAt,
     textSnapshot: buildDocumentText(title, textSnapshot),
     title,
   } satisfies PartyStatementDocument;
+}
+
+function applyCollectedHour(publishedAt: string | null) {
+  if (!publishedAt) {
+    return null;
+  }
+
+  const publishedDateKey = getKoreanDateKey(new Date(publishedAt));
+  const collectedHour = getKoreanHour(new Date());
+
+  if (!publishedDateKey || !collectedHour) {
+    return publishedAt;
+  }
+
+  const collectedHourDate = new Date(
+    `${publishedDateKey}T${collectedHour}:00:00+09:00`,
+  );
+
+  if (Number.isNaN(collectedHourDate.getTime())) {
+    return publishedAt;
+  }
+
+  return collectedHourDate.toISOString();
+}
+
+function getKoreanDateKey(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+
+  return year && month && day ? `${year}-${month}-${day}` : null;
+}
+
+function getKoreanHour(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    hour: "2-digit",
+    hourCycle: "h23",
+    timeZone: "Asia/Seoul",
+  }).formatToParts(date);
+
+  return parts.find((part) => part.type === "hour")?.value ?? null;
 }

@@ -550,10 +550,6 @@ a {
   --statement-message-max-width: 320px;
 }
 
-.statement-feed-row.is-width-probing {
-  --statement-message-max-width: 360px;
-}
-
 .statement-feed-row--left {
   justify-content: flex-start;
 }
