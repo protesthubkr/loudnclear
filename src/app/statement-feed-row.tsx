@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useRef } from "react";
 import type { PublicStatementFeedItem } from "@/lib/telegram-statements/public-feed-types";
 import { useStatementBubbleMeasurement } from "./statement-bubble-measurement";
@@ -42,10 +41,13 @@ export function StatementFeedRow({ item }: { item: PublicStatementFeedItem }) {
             aria-hidden="true"
             className="statement-avatar statement-avatar--logo"
           >
-            <Image
+            {/* eslint-disable-next-line @next/next/no-img-element -- Tiny repeated feed logos should avoid scroll-time lazy image work. */}
+            <img
               alt=""
               className="statement-avatar-image"
+              decoding="async"
               height={34}
+              loading="eager"
               src={profile.logoSrc}
               width={34}
             />
