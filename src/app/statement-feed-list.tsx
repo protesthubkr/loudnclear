@@ -3,7 +3,6 @@
 import {
   Fragment,
   useCallback,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -68,6 +67,27 @@ export function StatementFeedList({
     [visibleItems],
   );
 
+  const handleMeasurementsSettled = useCallback(() => {
+    if (!didInitialScrollRef.current) {
+      didInitialScrollRef.current = true;
+      window.scrollTo(0, document.documentElement.scrollHeight);
+      requestAnimationFrame(() => {
+        window.scrollTo(0, document.documentElement.scrollHeight);
+      });
+      return;
+    }
+
+    const snapshot = pendingScrollRestoreRef.current;
+
+    if (!snapshot) {
+      return;
+    }
+
+    pendingScrollRestoreRef.current = null;
+    const nextScrollHeight = document.documentElement.scrollHeight;
+    window.scrollTo(0, snapshot.scrollY + nextScrollHeight - snapshot.scrollHeight);
+  }, []);
+
   const loadPreviousWindow = useCallback(async (source: LoadPreviousSource) => {
     if (isLoadingPrevious || !hasMoreBefore) {
       return;
@@ -120,32 +140,6 @@ export function StatementFeedList({
   const shouldShowLoadMoreButton =
     (hasMoreBefore || isButtonLoading) && !isPullLoading;
 
-  useLayoutEffect(() => {
-    if (didInitialScrollRef.current) {
-      return;
-    }
-
-    didInitialScrollRef.current = true;
-    requestAnimationFrame(() => {
-      window.scrollTo(0, document.documentElement.scrollHeight);
-      requestAnimationFrame(() => {
-        window.scrollTo(0, document.documentElement.scrollHeight);
-      });
-    });
-  }, []);
-
-  useLayoutEffect(() => {
-    const snapshot = pendingScrollRestoreRef.current;
-
-    if (!snapshot) {
-      return;
-    }
-
-    pendingScrollRestoreRef.current = null;
-    const nextScrollHeight = document.documentElement.scrollHeight;
-    window.scrollTo(0, snapshot.scrollY + nextScrollHeight - snapshot.scrollHeight);
-  }, [restoreVersion]);
-
   return (
     <>
       {shouldShowPullIndicator ? (
@@ -154,7 +148,10 @@ export function StatementFeedList({
           state={pullLoadState}
         />
       ) : null}
-      <StatementBubbleMeasurementProvider>
+      <StatementBubbleMeasurementProvider
+        measurementSignal={restoreVersion}
+        onMeasurementsSettled={handleMeasurementsSettled}
+      >
         <section
           aria-label="성명문 목록"
           aria-live="polite"

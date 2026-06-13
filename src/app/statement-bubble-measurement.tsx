@@ -22,7 +22,6 @@ type BubbleMeasurementEntry = {
   bubble: HTMLAnchorElement;
   forceMeasure: boolean;
   id: string;
-  isVisible: boolean;
   lastMeasuredRowWidth: number;
   row: HTMLDivElement;
   sentenceElement: HTMLSpanElement;
@@ -32,25 +31,32 @@ type BubbleMeasurementContextValue = {
   register: (input: RegisterBubbleMeasurementInput) => () => void;
 };
 
+type MeasurementScheduleOptions = {
+  notifyWhenSettled?: boolean;
+};
+
 type RegisterBubbleMeasurementInput = BubbleMeasurementRefs & {
   id: string;
 };
 
 const BUBBLE_WIDTH_MEASUREMENT_SLACK_PX = 14;
-const BUBBLE_VISIBILITY_ROOT_MARGIN = "240px 0px";
 const BubbleMeasurementContext =
   createContext<BubbleMeasurementContextValue | null>(null);
 
 export function StatementBubbleMeasurementProvider({
   children,
+  measurementSignal,
+  onMeasurementsSettled,
 }: {
   children: ReactNode;
+  measurementSignal?: number;
+  onMeasurementsSettled?: () => void;
 }) {
   const entriesRef = useRef(new Map<string, BubbleMeasurementEntry>());
   const pendingIdsRef = useRef(new Set<string>());
   const prepareFrameRef = useRef(0);
   const measureFrameRef = useRef(0);
-  const observerRef = useRef<IntersectionObserver | null>(null);
+  const shouldNotifySettledRef = useRef(false);
 
   const cancelPendingFrames = useCallback(() => {
     window.cancelAnimationFrame(prepareFrameRef.current);
@@ -59,73 +65,80 @@ export function StatementBubbleMeasurementProvider({
     measureFrameRef.current = 0;
   }, []);
 
-  const scheduleMeasurement = useCallback((id: string, force = false) => {
-    const entry = entriesRef.current.get(id);
-
-    if (!entry || !entry.isVisible) {
+  const notifyMeasurementsSettled = useCallback(() => {
+    if (!shouldNotifySettledRef.current) {
       return;
     }
 
-    entry.forceMeasure = entry.forceMeasure || force;
-    pendingIdsRef.current.add(id);
+    shouldNotifySettledRef.current = false;
+    onMeasurementsSettled?.();
+  }, [onMeasurementsSettled]);
 
-    if (prepareFrameRef.current) {
-      return;
-    }
+  const schedulePendingMeasurements = useCallback(
+    ({ notifyWhenSettled }: MeasurementScheduleOptions = {}) => {
+      if (notifyWhenSettled) {
+        shouldNotifySettledRef.current = true;
+      }
 
-    prepareFrameRef.current = window.requestAnimationFrame(() => {
-      prepareFrameRef.current = 0;
-      const pendingEntries = Array.from(pendingIdsRef.current)
-        .map((pendingId) => entriesRef.current.get(pendingId))
-        .filter((pendingEntry): pendingEntry is BubbleMeasurementEntry =>
-          Boolean(pendingEntry?.isVisible),
-        );
-      pendingIdsRef.current.clear();
-      const entriesToMeasure = prepareEntriesForMeasurement(pendingEntries);
-
-      if (entriesToMeasure.length === 0) {
+      if (prepareFrameRef.current) {
         return;
       }
 
-      measureFrameRef.current = window.requestAnimationFrame(() => {
-        measureFrameRef.current = 0;
-        measurePreparedEntries(entriesToMeasure);
-      });
-    });
-  }, []);
-
-  const ensureObserver = useCallback(() => {
-    if (observerRef.current || !("IntersectionObserver" in window)) {
-      return observerRef.current;
-    }
-
-    observerRef.current = new IntersectionObserver(
-      (intersectionEntries) => {
-        for (const intersectionEntry of intersectionEntries) {
-          const entry = findEntryByRow(
-            entriesRef.current,
-            intersectionEntry.target,
+      prepareFrameRef.current = window.requestAnimationFrame(() => {
+        prepareFrameRef.current = 0;
+        const pendingEntries = Array.from(pendingIdsRef.current)
+          .map((pendingId) => entriesRef.current.get(pendingId))
+          .filter((pendingEntry): pendingEntry is BubbleMeasurementEntry =>
+            Boolean(pendingEntry),
           );
+        pendingIdsRef.current.clear();
+        const entriesToMeasure = prepareEntriesForMeasurement(pendingEntries);
 
-          if (!entry) {
-            continue;
-          }
-
-          entry.isVisible = intersectionEntry.isIntersecting;
-
-          if (entry.isVisible) {
-            scheduleMeasurement(entry.id);
-          }
+        if (entriesToMeasure.length === 0) {
+          notifyMeasurementsSettled();
+          return;
         }
-      },
-      {
-        root: null,
-        rootMargin: BUBBLE_VISIBILITY_ROOT_MARGIN,
-      },
-    );
 
-    return observerRef.current;
-  }, [scheduleMeasurement]);
+        measureFrameRef.current = window.requestAnimationFrame(() => {
+          measureFrameRef.current = 0;
+          measurePreparedEntries(entriesToMeasure);
+          notifyMeasurementsSettled();
+        });
+      });
+    },
+    [notifyMeasurementsSettled],
+  );
+
+  const scheduleMeasurement = useCallback(
+    (
+      id: string,
+      force = false,
+      options: MeasurementScheduleOptions = {},
+    ) => {
+      const entry = entriesRef.current.get(id);
+
+      if (!entry) {
+        return;
+      }
+
+      entry.forceMeasure = entry.forceMeasure || force;
+      pendingIdsRef.current.add(id);
+      schedulePendingMeasurements(options);
+    },
+    [schedulePendingMeasurements],
+  );
+
+  const scheduleAllMeasurements = useCallback(
+    (force = false, options: MeasurementScheduleOptions = {}) => {
+      for (const entry of entriesRef.current.values()) {
+        entry.forceMeasure = entry.forceMeasure || force;
+        pendingIdsRef.current.add(entry.id);
+      }
+
+      schedulePendingMeasurements(options);
+    },
+    [schedulePendingMeasurements],
+  );
 
   const register = useCallback(
     ({
@@ -146,51 +159,39 @@ export function StatementBubbleMeasurementProvider({
         bubble,
         forceMeasure: false,
         id,
-        isVisible: false,
         lastMeasuredRowWidth: 0,
         row,
         sentenceElement,
       };
       entriesRef.current.set(id, entry);
-
-      const observer = ensureObserver();
-
-      if (observer) {
-        observer.observe(row);
-      } else {
-        entry.isVisible = true;
-        scheduleMeasurement(id, true);
-      }
+      scheduleMeasurement(id, true);
 
       return () => {
         entriesRef.current.delete(id);
         pendingIdsRef.current.delete(id);
-        observerRef.current?.unobserve(row);
       };
     },
-    [ensureObserver, scheduleMeasurement],
+    [scheduleMeasurement],
   );
 
   useEffect(() => {
-    function measureVisibleRows() {
-      for (const entry of entriesRef.current.values()) {
-        if (entry.isVisible) {
-          scheduleMeasurement(entry.id, true);
-        }
-      }
+    function measureAllRows() {
+      scheduleAllMeasurements(true);
     }
 
-    window.addEventListener("resize", measureVisibleRows);
+    window.addEventListener("resize", measureAllRows);
 
     return () => {
-      window.removeEventListener("resize", measureVisibleRows);
+      window.removeEventListener("resize", measureAllRows);
     };
-  }, [scheduleMeasurement]);
+  }, [scheduleAllMeasurements]);
+
+  useLayoutEffect(() => {
+    scheduleAllMeasurements(false, { notifyWhenSettled: true });
+  }, [measurementSignal, scheduleAllMeasurements]);
 
   useEffect(
     () => () => {
-      observerRef.current?.disconnect();
-      observerRef.current = null;
       cancelPendingFrames();
     },
     [cancelPendingFrames],
@@ -308,19 +309,6 @@ function getMeasuredBubbleMetrics(
       widestLine + horizontalChrome + BUBBLE_WIDTH_MEASUREMENT_SLACK_PX,
     ),
   };
-}
-
-function findEntryByRow(
-  entries: Map<string, BubbleMeasurementEntry>,
-  target: Element,
-) {
-  for (const entry of entries.values()) {
-    if (entry.row === target) {
-      return entry;
-    }
-  }
-
-  return null;
 }
 
 function readPixelValue(value: string) {
