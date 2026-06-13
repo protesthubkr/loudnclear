@@ -37,6 +37,8 @@ export async function upsertPartyStatementSummaryCandidate({
         document_type: document.documentType,
         organization_name: document.organizationName,
         published_at: document.publishedAt,
+        published_at_precision: document.publishedAtPrecision,
+        published_at_time_source: document.publishedAtTimeSource,
         source_key: document.sourceKey,
         source_url: document.sourceUrl,
         title: document.title,

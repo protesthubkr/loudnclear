@@ -17,6 +17,8 @@ export async function upsertPartyStatementDocument({
     last_seen_at: now,
     organization_name: document.organizationName,
     published_at: document.publishedAt,
+    published_at_precision: document.publishedAtPrecision,
+    published_at_time_source: document.publishedAtTimeSource,
     raw_payload: {
       rawCategory: document.rawCategory,
       title: document.title,

@@ -260,8 +260,12 @@ create table if not exists public.party_statement_documents (
         'condemnation',
         'welcome'
       )
-    ),
+  ),
   published_at timestamptz,
+  published_at_precision text not null default 'unknown'
+    check (published_at_precision in ('unknown', 'date', 'hour', 'minute', 'second')),
+  published_at_time_source text not null default 'source'
+    check (published_at_time_source in ('source', 'collected')),
   text_snapshot text not null default '',
   raw_payload jsonb not null default '{}'::jsonb,
   first_seen_at timestamptz not null default now(),
@@ -312,6 +316,10 @@ create table if not exists public.party_statement_summaries (
   source_url text not null,
   title text not null,
   published_at timestamptz,
+  published_at_precision text not null default 'unknown'
+    check (published_at_precision in ('unknown', 'date', 'hour', 'minute', 'second')),
+  published_at_time_source text not null default 'source'
+    check (published_at_time_source in ('source', 'collected')),
   document_type text not null default 'position'
     check (
       document_type in (
@@ -323,7 +331,7 @@ create table if not exists public.party_statement_summaries (
         'condemnation',
         'welcome'
       )
-    ),
+  ),
   core_sentence text,
   status text not null default 'pending'
     check (status in ('pending', 'extracted', 'skipped', 'failed')),
@@ -955,11 +963,11 @@ as $$
       summary.published_at as message_created_at,
       (
         summary.published_at is null
-        or to_char(summary.published_at at time zone 'Asia/Seoul', 'HH24:MI') = '00:00'
+        or summary.published_at_precision in ('unknown', 'date')
       ) as is_time_unknown,
       case
         when summary.published_at is not null
-          and to_char(summary.published_at at time zone 'Asia/Seoul', 'HH24:MI') = '00:00'
+          and summary.published_at_precision in ('unknown', 'date')
         then (
           date_trunc('day', summary.published_at at time zone 'Asia/Seoul')
           + interval '1 day'

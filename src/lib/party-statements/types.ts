@@ -5,6 +5,15 @@ export type PartyStatementSourceKey =
   | "theminjoo"
   | "reform_party";
 
+export type PartyStatementPublishedAtPrecision =
+  | "unknown"
+  | "date"
+  | "hour"
+  | "minute"
+  | "second";
+
+export type PartyStatementPublishedAtTimeSource = "source" | "collected";
+
 export type PartyStatementSourceDefinition = {
   allowInsecureTls?: boolean;
   buildListUrls?: (context: PartyStatementListUrlContext) => string[];
@@ -23,6 +32,8 @@ export type PartyStatementListItem = {
   documentType: TelegramStatementDocumentType;
   externalId: string;
   publishedAt: string | null;
+  publishedAtPrecision: PartyStatementPublishedAtPrecision;
+  publishedAtTimeSource: PartyStatementPublishedAtTimeSource;
   rawCategory: string;
   sourceKey: PartyStatementSourceKey;
   sourceUrl: string;

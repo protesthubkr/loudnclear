@@ -2,7 +2,6 @@ import {
   absoluteUrl,
   extractFirstMatch,
   mapPartyDocumentType,
-  parseKoreanDateTime,
   stripHtml,
 } from "../html";
 import type {
@@ -11,6 +10,7 @@ import type {
   PartyStatementListUrlContext,
   PartyStatementSourceParser,
 } from "../types";
+import { applyCollectedHour, parsePartyPublishedAt } from "./published-at";
 import { buildDocumentText } from "./source-utils";
 
 const PEOPLE_POWER_LIST_URL = "https://www.peoplepowerparty.kr/news/comment";
@@ -68,11 +68,15 @@ function parsePeoplePowerList(html: string) {
       return [];
     }
 
+    const publishedAt = applyCollectedHour(
+      parsePartyPublishedAt(date).publishedAt,
+    );
+
     return [
       {
         documentType,
         externalId,
-        publishedAt: applyCollectedHour(parseKoreanDateTime(date)),
+        ...publishedAt,
         rawCategory,
         sourceKey: "people_power_party",
         sourceUrl: absoluteUrl(href, PEOPLE_POWER_LIST_URL),
@@ -103,59 +107,21 @@ function parsePeoplePowerDetail(
     return null;
   }
 
+  const publishedAt = applyCollectedHour(parsePartyPublishedAt(date).publishedAt);
+
   return {
     ...listItem,
     organizationName: "국힘당",
-    publishedAt:
-      applyCollectedHour(parseKoreanDateTime(date)) ?? listItem.publishedAt,
+    ...(publishedAt.publishedAt ? publishedAt : pickListItemPublishedAt(listItem)),
     textSnapshot: buildDocumentText(title, textSnapshot),
     title,
   } satisfies PartyStatementDocument;
 }
 
-function applyCollectedHour(publishedAt: string | null) {
-  if (!publishedAt) {
-    return null;
-  }
-
-  const publishedDateKey = getKoreanDateKey(new Date(publishedAt));
-  const collectedHour = getKoreanHour(new Date());
-
-  if (!publishedDateKey || !collectedHour) {
-    return publishedAt;
-  }
-
-  const collectedHourDate = new Date(
-    `${publishedDateKey}T${collectedHour}:00:00+09:00`,
-  );
-
-  if (Number.isNaN(collectedHourDate.getTime())) {
-    return publishedAt;
-  }
-
-  return collectedHourDate.toISOString();
-}
-
-function getKoreanDateKey(date: Date) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    day: "2-digit",
-    month: "2-digit",
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-  }).formatToParts(date);
-  const year = parts.find((part) => part.type === "year")?.value;
-  const month = parts.find((part) => part.type === "month")?.value;
-  const day = parts.find((part) => part.type === "day")?.value;
-
-  return year && month && day ? `${year}-${month}-${day}` : null;
-}
-
-function getKoreanHour(date: Date) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    hour: "2-digit",
-    hourCycle: "h23",
-    timeZone: "Asia/Seoul",
-  }).formatToParts(date);
-
-  return parts.find((part) => part.type === "hour")?.value ?? null;
+function pickListItemPublishedAt(listItem: PartyStatementListItem) {
+  return {
+    publishedAt: listItem.publishedAt,
+    publishedAtPrecision: listItem.publishedAtPrecision,
+    publishedAtTimeSource: listItem.publishedAtTimeSource,
+  };
 }

@@ -2,7 +2,6 @@ import {
   absoluteUrl,
   extractFirstMatch,
   mapPartyDocumentType,
-  parseKoreanDateTime,
   stripHtml,
 } from "../html";
 import type {
@@ -11,6 +10,7 @@ import type {
   PartyStatementListUrlContext,
   PartyStatementSourceParser,
 } from "../types";
+import { parsePartyPublishedAt } from "./published-at";
 import { buildDocumentText } from "./source-utils";
 
 const REFORM_PARTY_LIST_URL = "https://www.reformparty.kr/briefing";
@@ -72,11 +72,13 @@ function parseReformPartyList(html: string, listUrl: string) {
       return [];
     }
 
+    const publishedAt = parsePartyPublishedAt(date);
+
     return [
       {
         documentType,
         externalId,
-        publishedAt: parseKoreanDateTime(date),
+        ...publishedAt,
         rawCategory,
         sourceKey: "reform_party",
         sourceUrl: absoluteUrl(href, listUrl),
@@ -113,11 +115,21 @@ function parseReformPartyDetail(
     return null;
   }
 
+  const publishedAt = parsePartyPublishedAt(date);
+
   return {
     ...listItem,
     organizationName: "개혁신당",
-    publishedAt: parseKoreanDateTime(date) ?? listItem.publishedAt,
+    ...(publishedAt.publishedAt ? publishedAt : pickListItemPublishedAt(listItem)),
     textSnapshot: buildDocumentText(title, textSnapshot),
     title,
   } satisfies PartyStatementDocument;
+}
+
+function pickListItemPublishedAt(listItem: PartyStatementListItem) {
+  return {
+    publishedAt: listItem.publishedAt,
+    publishedAtPrecision: listItem.publishedAtPrecision,
+    publishedAtTimeSource: listItem.publishedAtTimeSource,
+  };
 }

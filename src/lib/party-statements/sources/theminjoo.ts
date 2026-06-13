@@ -2,7 +2,6 @@ import {
   absoluteUrl,
   extractFirstMatch,
   mapPartyDocumentType,
-  parseKoreanDateTime,
   stripHtml,
 } from "../html";
 import type {
@@ -11,6 +10,7 @@ import type {
   PartyStatementListUrlContext,
   PartyStatementSourceParser,
 } from "../types";
+import { parsePartyPublishedAt } from "./published-at";
 import { buildDocumentText } from "./source-utils";
 
 const THEMINJOO_STATEMENT_LIST_URL =
@@ -114,11 +114,13 @@ function parseTheminjooList(html: string, listUrl: string) {
         return [];
       }
 
+      const publishedAt = parsePartyPublishedAt(date);
+
       return [
         {
           documentType,
           externalId,
-          publishedAt: parseKoreanDateTime(date),
+          ...publishedAt,
           rawCategory,
           sourceKey: "theminjoo",
           sourceUrl: absoluteUrl(href, listUrl),
@@ -162,13 +164,23 @@ function parseTheminjooDetail(
     return null;
   }
 
+  const publishedAt = parsePartyPublishedAt(date);
+
   return {
     ...listItem,
     documentType,
     organizationName: "민주당",
-    publishedAt: parseKoreanDateTime(date) ?? listItem.publishedAt,
+    ...(publishedAt.publishedAt ? publishedAt : pickListItemPublishedAt(listItem)),
     rawCategory,
     textSnapshot: buildDocumentText(title, textSnapshot),
     title,
   } satisfies PartyStatementDocument;
+}
+
+function pickListItemPublishedAt(listItem: PartyStatementListItem) {
+  return {
+    publishedAt: listItem.publishedAt,
+    publishedAtPrecision: listItem.publishedAtPrecision,
+    publishedAtTimeSource: listItem.publishedAtTimeSource,
+  };
 }
